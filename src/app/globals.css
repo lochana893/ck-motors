@@ -1,0 +1,217 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5f6f8;
+  --foreground: #111827;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+a { text-decoration: none; }
+
+/* Shared portal surfaces keep the existing feature components theme-aware
+   without changing their Supabase-backed behavior. */
+.theme-root[data-theme="light"] .portal-surface {
+  background: #f5f6f8 !important;
+  color: #0f172a !important;
+}
+
+.theme-root[data-theme="dark"] .portal-surface {
+  background: #111317 !important;
+  color: #f8fafc !important;
+}
+
+.theme-root[data-theme="light"] .portal-surface [class~="bg-[#070707]"],
+.theme-root[data-theme="light"] .portal-surface [class~="bg-[#080808]"],
+.theme-root[data-theme="light"] .portal-surface [class~="bg-[#090909]"],
+.theme-root[data-theme="light"] .portal-surface [class~="bg-[#0c0c0c]"],
+.theme-root[data-theme="light"] .portal-surface [class~="bg-[#0d0d0d]"],
+.theme-root[data-theme="light"] .portal-surface [class~="bg-[#111]"],
+.theme-root[data-theme="light"] .portal-surface [class~="bg-black/30"],
+.theme-root[data-theme="light"] .portal-surface [class~="bg-white/[0.03]"] {
+  background-color: #fff !important;
+}
+
+.theme-root[data-theme="light"] .portal-surface [class~="border-white/10"],
+.theme-root[data-theme="light"] .portal-surface [class~="border-white/15"] {
+  border-color: #e2e8f0 !important;
+}
+
+.theme-root[data-theme="light"] .portal-surface [class~="text-white"] {
+  color: #0f172a !important;
+}
+
+.theme-root[data-theme="light"] .portal-surface [class~="text-gray-400"],
+.theme-root[data-theme="light"] .portal-surface [class~="text-gray-500"],
+.theme-root[data-theme="light"] .portal-surface [class~="text-gray-600"] {
+  color: #64748b !important;
+}
+
+.theme-root[data-theme="light"] .portal-surface input,
+.theme-root[data-theme="light"] .portal-surface select,
+.theme-root[data-theme="light"] .portal-surface textarea {
+  border-color: #cbd5e1 !important;
+  background-color: #fff !important;
+  color: #0f172a !important;
+}
+
+.theme-root[data-theme="light"] .portal-surface input::placeholder,
+.theme-root[data-theme="light"] .portal-surface textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.theme-root[data-theme="dark"] .portal-surface [class~="bg-[#070707]"],
+.theme-root[data-theme="dark"] .portal-surface [class~="bg-[#080808]"] {
+  background-color: #111317 !important;
+}
+
+.theme-root[data-theme="dark"] .portal-surface [class~="bg-[#111]"],
+.theme-root[data-theme="dark"] .portal-surface [class~="bg-[#0c0c0c]"],
+.theme-root[data-theme="dark"] .portal-surface [class~="bg-[#0d0d0d]"] {
+  background-color: #181b20 !important;
+}
+
+.theme-root[data-theme="dark"] .portal-surface [class~="border-white/10"] {
+  border-color: #2a2f36 !important;
+}
+
+.theme-root[data-theme="dark"] .portal-surface input,
+.theme-root[data-theme="dark"] .portal-surface select,
+.theme-root[data-theme="dark"] .portal-surface textarea {
+  border-color: #2a2f36 !important;
+  background-color: #181b20 !important;
+  color: #f8fafc !important;
+}
+
+.theme-root[data-theme="dark"] .portal-surface input::placeholder,
+.theme-root[data-theme="dark"] .portal-surface textarea::placeholder {
+  color: #64748b !important;
+}
+
+.theme-root[data-theme="dark"] .portal-surface .theme-toggle {
+  border-color: #2a2f36 !important;
+  background-color: #1b1e24 !important;
+  color: #cbd5e1 !important;
+}
+
+.theme-root[data-theme="dark"] .revenue-modal {
+  border-color: #2a2f36 !important;
+  background: #181b20 !important;
+  color: #f8fafc !important;
+}
+
+.theme-root[data-theme="dark"] .revenue-modal .border-slate-200,
+.theme-root[data-theme="dark"] .revenue-modal .border-slate-100 {
+  border-color: #2a2f36 !important;
+}
+
+.theme-root[data-theme="dark"] .revenue-modal .bg-white {
+  background-color: #181b20 !important;
+}
+
+.theme-root[data-theme="dark"] .revenue-modal .bg-red-50 {
+  background-color: #3b1b20 !important;
+}
+
+.theme-root[data-theme="dark"] .revenue-modal .text-slate-900 {
+  color: #f8fafc !important;
+}
+
+.theme-root[data-theme="dark"] .revenue-modal .text-slate-600,
+.theme-root[data-theme="dark"] .revenue-modal .text-slate-500,
+.theme-root[data-theme="dark"] .revenue-modal .text-slate-700 {
+  color: #94a3b8 !important;
+}
+
+.theme-root[data-theme="light"] .portal-surface .invoice-print-overlay,
+.theme-root[data-theme="dark"] .portal-surface .invoice-print-overlay {
+  color: #0f172a;
+}
+
+@media print {
+  @page { size: A4 portrait; margin: 6mm; }
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+  body * { visibility: hidden !important; }
+  .no-print { display: none !important; }
+  .invoice-print-overlay,
+  .invoice-print-overlay *,
+  .invoice-print-area,
+  .invoice-print-area * { visibility: visible !important; }
+  .invoice-print-overlay {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+  .invoice-print-area {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    box-sizing: border-box !important;
+    width: 198mm !important;
+    max-width: 198mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 auto !important;
+    padding: 5mm !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    font-size: 10pt !important;
+    line-height: 1.25 !important;
+  }
+  .invoice-logo {
+    display: block !important;
+    width: 145px !important;
+    max-width: 145px !important;
+    height: auto !important;
+    object-fit: contain !important;
+    visibility: visible !important;
+  }
+  .invoice-print-area .mt-10,
+  .invoice-print-area .mt-8,
+  .invoice-print-area .mt-7,
+  .invoice-print-area .mt-6 { margin-top: 3mm !important; }
+  .invoice-print-area .mt-5,
+  .invoice-print-area .mt-4,
+  .invoice-print-area .mt-3 { margin-top: 2mm !important; }
+  .invoice-print-area .mb-5,
+  .invoice-print-area .mb-4,
+  .invoice-print-area .mb-3 { margin-bottom: 2mm !important; }
+  .invoice-print-area .p-7,
+  .invoice-print-area .p-10,
+  .invoice-print-area .p-4,
+  .invoice-print-area .p-3 { padding: 2mm !important; }
+  .invoice-print-area .pt-6,
+  .invoice-print-area .pt-5,
+  .invoice-print-area .pt-4,
+  .invoice-print-area .pb-6,
+  .invoice-print-area .pb-5,
+  .invoice-print-area .pb-4 { padding-top: 2mm !important; padding-bottom: 2mm !important; }
+  .invoice-print-area .gap-6,
+  .invoice-print-area .gap-5 { gap: 3mm !important; }
+  .invoice-print-area .text-2xl { font-size: 16pt !important; }
+  .invoice-print-area table { font-size: 9pt !important; }
+  .invoice-print-area th,
+  .invoice-print-area td { padding: 1.5mm !important; }
+}
