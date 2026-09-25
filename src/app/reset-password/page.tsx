@@ -211,7 +211,7 @@ export default function ResetPasswordPage() {
       onChange={(e) => setPassword(e.target.value)}
       placeholder="Minimum 6 characters"
       autoComplete="new-password"
-      className="w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 pr-12 text-sm text-white placeholder:text-slate-400 outline-none focus:border-red-600"
+      className="auth-input w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 pr-12 text-sm outline-none focus:border-red-600"
     />
 
     <button
@@ -237,7 +237,7 @@ export default function ResetPasswordPage() {
       onChange={(e) => setConfirmPassword(e.target.value)}
       placeholder="Enter password again"
       autoComplete="new-password"
-      className="w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 pr-12 text-sm text-white placeholder:text-slate-400 outline-none focus:border-red-600"
+      className="auth-input w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 pr-12 text-sm outline-none focus:border-red-600"
     />
 
     <button

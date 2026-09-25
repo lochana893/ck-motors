@@ -31,6 +31,11 @@ export default function LoginPage() {
         });
 
       if (loginError) {
+        void fetch("/api/security/login-activity", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim().toLowerCase(), status: "failed" }),
+        }).catch(() => undefined);
         setError("Email or password is incorrect.");
         return;
       }
@@ -39,6 +44,12 @@ export default function LoginPage() {
         setError("Unable to login. Please try again.");
         return;
       }
+
+      void fetch("/api/security/login-activity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.user.email || email.trim().toLowerCase(), status: "success" }),
+      }).catch(() => undefined);
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
@@ -136,7 +147,7 @@ export default function LoginPage() {
                   placeholder="you@example.com"
                   autoComplete="email"
                   required
-                  className="h-12 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-red-600"
+                  className="auth-input-light h-12 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-red-600"
                 />
               </div>
 
@@ -162,7 +173,7 @@ export default function LoginPage() {
     placeholder="Enter your password"
     autoComplete="current-password"
     required
-    className="h-12 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-900 outline-none focus:border-red-600"
+    className="auth-input-light h-12 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 pr-12 text-sm outline-none focus:border-red-600"
   />
 
   <button

@@ -129,7 +129,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Enter your full name"
                   autoComplete="name"
-                  className="w-full rounded-lg border border-white/10 bg-[#090909] px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-700 focus:border-red-600"
+                  className="auth-input w-full rounded-lg border border-white/10 bg-[#090909] px-4 py-3 text-sm outline-none transition focus:border-red-600"
                 />
               </div>
 
@@ -144,7 +144,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="07X XXX XXXX"
                   autoComplete="tel"
-                  className="w-full rounded-lg border border-white/10 bg-[#090909] px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-700 focus:border-red-600"
+                  className="auth-input w-full rounded-lg border border-white/10 bg-[#090909] px-4 py-3 text-sm outline-none transition focus:border-red-600"
                 />
               </div>
 
@@ -159,7 +159,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   autoComplete="email"
-                  className="w-full rounded-lg border border-white/10 bg-[#090909] px-4 py-3 text-sm text-white outline-none transition placeholder:text-gray-700 focus:border-red-600"
+                  className="auth-input w-full rounded-lg border border-white/10 bg-[#090909] px-4 py-3 text-sm outline-none transition focus:border-red-600"
                 />
               </div>
 
@@ -175,7 +175,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     onChange={(e) => setPassword(e.target.value)}
     placeholder="Minimum 6 characters"
     autoComplete="new-password"
-    className="w-full rounded-lg border border-white/10 bg-[#090909] px-4 py-3 pr-12 text-sm outline-none focus:border-red-600"
+    className="auth-input w-full rounded-lg border border-white/10 bg-[#090909] px-4 py-3 pr-12 text-sm outline-none focus:border-red-600"
   />
 
   <button
@@ -204,7 +204,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     onChange={(e) => setConfirmPassword(e.target.value)}
     placeholder="Enter password again"
     autoComplete="new-password"
-    className="w-full rounded-lg border border-white/10 bg-[#090909] px-4 py-3 pr-12 text-sm outline-none focus:border-red-600"
+    className="auth-input w-full rounded-lg border border-white/10 bg-[#090909] px-4 py-3 pr-12 text-sm outline-none focus:border-red-600"
   />
 
   <button

@@ -125,6 +125,20 @@ export default function DashboardPage() {
   const [profileError, setProfileError] = useState("");
 
   useEffect(() => {
+    if (!profile?.id) return;
+    const channel = supabase.channel(`customer-notifications-${profile.id}`).on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${profile.id}` },
+      (payload) => {
+        setNotifications((current) => [payload.new as Notification, ...current]);
+      },
+    ).subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [profile?.id, supabase]);
+
+  useEffect(() => {
     async function loadDashboard() {
       const requestedSection = new URLSearchParams(window.location.search).get("section");
       if (requestedSection && ["dashboard", "vehicles", "bookings", "history", "notifications", "messages", "profile"].includes(requestedSection)) {
@@ -526,7 +540,7 @@ export default function DashboardPage() {
            
 
           {activeSection === "bookings" && (
-            <BookingManager />
+            <BookingManager onAddVehicle={() => openSection("vehicles")} />
           )}
 
           {activeSection === "history" && (

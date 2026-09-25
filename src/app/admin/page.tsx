@@ -29,6 +29,8 @@ import {
   Factory,
   UserCog,
   X,
+  Activity,
+  BarChart3,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
@@ -45,6 +47,9 @@ import { isProtectedOwnerEmail } from "@/lib/protected-owner";
 import SearchableVehicleSelect from "@/components/vehicles/SearchableVehicleSelect";
 import { useVehicleMasterData } from "@/lib/vehicle-master-data";
 import VehicleSettingsSection from "@/components/admin/VehicleSettingsSection";
+import LoginActivitySection from "@/components/admin/LoginActivitySection";
+import AnalyticsSection from "@/components/admin/AnalyticsSection";
+import AdminNotificationBell from "@/components/admin/AdminNotificationBell";
 
 
 
@@ -62,7 +67,9 @@ type Section =
   | "vehicle-settings"
   | "inventory"
   | "suppliers"
-  | "technicians";
+  | "technicians"
+  | "login-activity"
+  | "analytics";
 
 type Profile = {
   id: string;
@@ -234,8 +241,12 @@ export default function AdminPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
-  const [activeSection, setActiveSection] =
-    useState<Section>("dashboard");
+  const [activeSection, setActiveSection] = useState<Section>(() => {
+    if (typeof window === "undefined") return "dashboard";
+    const requestedSection = new URLSearchParams(window.location.search).get("section");
+    const validSections: Section[] = ["dashboard", "bookings", "customers", "vehicles", "services", "records", "messages", "gallery", "website-settings", "users", "vehicle-settings", "inventory", "suppliers", "technicians", "analytics", "login-activity"];
+    return validSections.includes(requestedSection as Section) ? requestedSection as Section : "dashboard";
+  });
 
     const [sidebarOpen, setSidebarOpen] = useState(false);  
     const [loading, setLoading] = useState(true);
@@ -488,7 +499,16 @@ export default function AdminPage() {
     if (bookingResult.error) {
       setError(bookingResult.error.message);
     } else {
-      setBookings((bookingResult.data || []) as Booking[]);
+      const nextBookings = (bookingResult.data || []) as Booking[];
+      setBookings(nextBookings);
+      const requestedBookingId = new URLSearchParams(window.location.search).get("bookingId");
+      if (requestedBookingId) {
+        const requestedBooking = nextBookings.find((booking) => booking.id === requestedBookingId);
+        if (requestedBooking) {
+          setActiveSection("bookings");
+          setSearch(requestedBooking.booking_reference);
+        }
+      }
     }
 
     if (serviceResult.error) {
@@ -1470,12 +1490,7 @@ export default function AdminPage() {
 
   <div className="flex items-center gap-3">
     <ThemeToggle />
-    <button
-      className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/10 bg-[#111]"
-      aria-label="Notifications"
-    >
-      <Bell size={18} />
-    </button>
+    <AdminNotificationBell />
 
     <div className="hidden rounded-xl border border-white/10 bg-[#111] px-4 py-2.5 sm:block">
       <p className="text-[9px] text-gray-600">
@@ -1649,6 +1664,18 @@ export default function AdminPage() {
                 label="Website Settings"
                 onClick={() => changeSection("website-settings")}
               />
+              <SidebarButton
+                active={activeSection === "analytics"}
+                icon={<BarChart3 size={18} />}
+                label="Analytics"
+                onClick={() => changeSection("analytics")}
+              />
+              <SidebarButton
+                active={activeSection === "login-activity"}
+                icon={<Activity size={18} />}
+                label="Login Activity"
+                onClick={() => changeSection("login-activity")}
+              />
             </>
           )}
         </div>
@@ -1689,9 +1716,7 @@ export default function AdminPage() {
 
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              <div className="rounded-xl border border-white/10 bg-[#111] p-3">
-                <Bell size={18} />
-              </div>
+              <AdminNotificationBell />
 
               <div className="hidden rounded-xl border border-white/10 bg-[#111] px-4 py-3 sm:block">
                 <p className="text-[10px] text-gray-600">
@@ -1869,6 +1894,8 @@ export default function AdminPage() {
           )}
           {activeSection === "users" && adminProfile?.role === "admin" && <AdminUsersSection />}
           {activeSection === "vehicle-settings" && adminProfile?.role === "admin" && <VehicleSettingsSection />}
+          {activeSection === "analytics" && adminProfile?.role === "admin" && <AnalyticsSection />}
+          {activeSection === "login-activity" && adminProfile?.role === "admin" && <LoginActivitySection />}
 
           <p className="mt-10 text-center text-[10px] text-gray-800">
             © 2026 CK Motors Administration
@@ -2178,6 +2205,24 @@ function DashboardSection({
   openBookings: () => void;
   onRevenueClick: () => void;
 }) {
+  const supabase = useMemo(() => createClient(), []);
+  const [notificationSummary, setNotificationSummary] = useState({ unread: 0, today: 0 });
+
+  useEffect(() => {
+    let active = true;
+    async function loadNotificationSummary() {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const [unreadResult, todayResult] = await Promise.all([
+        supabase.from("admin_notifications").select("id", { count: "exact", head: true }).eq("is_read", false),
+        supabase.from("admin_notifications").select("id", { count: "exact", head: true }).eq("type", "new_booking").gte("created_at", start.toISOString()),
+      ]);
+      if (active) setNotificationSummary({ unread: unreadResult.count || 0, today: todayResult.count || 0 });
+    }
+    void loadNotificationSummary();
+    return () => { active = false; };
+  }, [supabase]);
+
   const activeBookings =
     bookings.filter(
       (booking) =>
@@ -2189,7 +2234,7 @@ function DashboardSection({
 
   return (
     <>
-      <div className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
         <StatCard
           icon={<Users />}
           value={customers.length}
@@ -2223,6 +2268,8 @@ function DashboardSection({
           onClick={onRevenueClick}
           ariaLabel="View monthly revenue breakdown"
         />
+        <StatCard icon={<Bell />} value={notificationSummary.unread} label="Unread Notifications" />
+        <StatCard icon={<CalendarDays />} value={notificationSummary.today} label="New Bookings Today" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
@@ -4089,6 +4136,10 @@ function sectionTitle(
       return "Admin Users";
     case "vehicle-settings":
       return "Vehicle Settings";
+    case "analytics":
+      return "Website Analytics";
+    case "login-activity":
+      return "Login Activity";
 
     default:
       return "Admin Dashboard";

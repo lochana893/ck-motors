@@ -186,7 +186,7 @@ function PasswordField({
           onChange={(event) => onChange(event.target.value)}
           autoComplete={autoComplete}
           required
-          className="h-12 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-900 outline-none focus:border-red-600"
+          className="auth-input-light h-12 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 pr-12 text-sm outline-none focus:border-red-600"
         />
         <button type="button" onClick={onToggle} aria-label={visible ? "Hide password" : "Show password"} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500">
           {visible ? <EyeOff size={18} /> : <Eye size={18} />}

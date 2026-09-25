@@ -63,7 +63,11 @@ function getToday() {
   return `${year}-${month}-${day}`;
 }
 
-export default function BookingManager() {
+export default function BookingManager({
+  onAddVehicle,
+}: {
+  onAddVehicle?: () => void;
+}) {
   const supabase = useMemo(() => createClient(), []);
 
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -302,7 +306,19 @@ export default function BookingManager() {
         </div>
 
         {vehicles.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-red-900/50 bg-red-950/10 p-8 text-center">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => onAddVehicle?.()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onAddVehicle?.();
+              }
+            }}
+            aria-label="Add a vehicle to enable service booking"
+            className="cursor-pointer rounded-xl border border-dashed border-red-900/50 bg-red-950/10 p-8 text-center transition hover:border-red-500 hover:bg-red-950/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+          >
             <Car
               size={34}
               className="mx-auto mb-3 text-red-500"
@@ -316,6 +332,17 @@ export default function BookingManager() {
               You must register a vehicle before making a
               service booking.
             </p>
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddVehicle?.();
+              }}
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-red-600 px-5 py-2.5 text-xs font-bold text-white transition hover:bg-red-500"
+            >
+              ADD VEHICLE
+            </button>
           </div>
         ) : (
           <form

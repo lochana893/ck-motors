@@ -485,14 +485,6 @@ export default function ServiceRecordManager() {
         .from("bookings")
         .update({ status: "completed" })
         .eq("id", selectedBooking.id);
-
-      await supabase.from("notifications").insert({
-        user_id: selectedBooking.user_id,
-        booking_id: selectedBooking.id,
-        type: "service_completed",
-        title: "Vehicle Service Completed",
-        message: `Your CK Motors service ${selectedBooking.booking_reference} has been completed.`,
-      });
     } else {
       await supabase.from("notifications").insert({
         user_id: selectedCustomerId,
