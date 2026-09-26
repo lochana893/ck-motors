@@ -65,8 +65,12 @@ function getToday() {
 
 export default function BookingManager({
   onAddVehicle,
+  highlightBookingId,
+  onHighlightHandled,
 }: {
   onAddVehicle?: () => void;
+  highlightBookingId?: string | null;
+  onHighlightHandled?: () => void;
 }) {
   const supabase = useMemo(() => createClient(), []);
 
@@ -166,6 +170,16 @@ export default function BookingManager({
 
     return () => window.clearTimeout(timer);
   }, [loadData]);
+
+  useEffect(() => {
+    if (!highlightBookingId || loading) return;
+    const element = document.getElementById(`booking-${highlightBookingId}`);
+    element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = window.setTimeout(() => {
+      onHighlightHandled?.();
+    }, 5000);
+    return () => window.clearTimeout(timer);
+  }, [highlightBookingId, loading, onHighlightHandled]);
 
   const selectedService = services.find(
     (service) => service.id === serviceId
@@ -619,7 +633,12 @@ export default function BookingManager({
               return (
                 <div
                   key={item.id}
-                  className="rounded-xl border border-white/10 bg-black/30 p-5"
+                  id={`booking-${item.id}`}
+                  className={`rounded-xl border p-5 transition ${
+                    highlightBookingId === item.id
+                      ? "border-red-500 bg-red-950/20 ring-2 ring-red-500/60"
+                      : "border-white/10 bg-black/30"
+                  }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>

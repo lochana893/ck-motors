@@ -31,6 +31,7 @@ import {
   X,
   Activity,
   BarChart3,
+  FileText,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
@@ -49,7 +50,9 @@ import { useVehicleMasterData } from "@/lib/vehicle-master-data";
 import VehicleSettingsSection from "@/components/admin/VehicleSettingsSection";
 import LoginActivitySection from "@/components/admin/LoginActivitySection";
 import AnalyticsSection from "@/components/admin/AnalyticsSection";
+import VisitorAnalyticsSection from "@/components/admin/VisitorAnalyticsSection";
 import AdminNotificationBell from "@/components/admin/AdminNotificationBell";
+import ReportCenter from "@/components/admin/reports/ReportCenter";
 
 
 
@@ -69,7 +72,9 @@ type Section =
   | "suppliers"
   | "technicians"
   | "login-activity"
-  | "analytics";
+  | "analytics"
+  | "visitor-analytics"
+  | "reports";
 
 type Profile = {
   id: string;
@@ -244,7 +249,7 @@ export default function AdminPage() {
   const [activeSection, setActiveSection] = useState<Section>(() => {
     if (typeof window === "undefined") return "dashboard";
     const requestedSection = new URLSearchParams(window.location.search).get("section");
-    const validSections: Section[] = ["dashboard", "bookings", "customers", "vehicles", "services", "records", "messages", "gallery", "website-settings", "users", "vehicle-settings", "inventory", "suppliers", "technicians", "analytics", "login-activity"];
+    const validSections: Section[] = ["dashboard", "bookings", "customers", "vehicles", "services", "records", "messages", "gallery", "website-settings", "users", "vehicle-settings", "inventory", "suppliers", "technicians", "analytics", "login-activity", "visitor-analytics", "reports"];
     return validSections.includes(requestedSection as Section) ? requestedSection as Section : "dashboard";
   });
 
@@ -1644,6 +1649,13 @@ export default function AdminPage() {
             onClick={() => changeSection("technicians")}
           />
 
+          <SidebarButton
+            active={activeSection === "reports"}
+            icon={<FileText size={18} />}
+            label="Reports"
+            onClick={() => changeSection("reports")}
+          />
+
           {adminProfile?.role === "admin" && (
             <>
               <SidebarButton
@@ -1669,6 +1681,12 @@ export default function AdminPage() {
                 icon={<BarChart3 size={18} />}
                 label="Analytics"
                 onClick={() => changeSection("analytics")}
+              />
+              <SidebarButton
+                active={activeSection === "visitor-analytics"}
+                icon={<Users size={18} />}
+                label="Visitor Analytics"
+                onClick={() => changeSection("visitor-analytics")}
               />
               <SidebarButton
                 active={activeSection === "login-activity"}
@@ -1886,6 +1904,16 @@ export default function AdminPage() {
           {activeSection === "inventory" && <InventoryManager />}
           {activeSection === "suppliers" && <SuppliersManager />}
           {activeSection === "technicians" && <TechniciansManager />}
+          {activeSection === "reports" && (
+            <ReportCenter
+              isAdmin={adminProfile?.role === "admin"}
+              profiles={profiles}
+              vehicles={vehicles}
+              bookings={bookings}
+              records={records}
+              sentMessages={sentMessages}
+            />
+          )}
           {activeSection === "website-settings" && adminProfile?.role === "admin" && (
             <WebsiteSettingsSection
               onSaved={setSuccess}
@@ -1895,6 +1923,7 @@ export default function AdminPage() {
           {activeSection === "users" && adminProfile?.role === "admin" && <AdminUsersSection />}
           {activeSection === "vehicle-settings" && adminProfile?.role === "admin" && <VehicleSettingsSection />}
           {activeSection === "analytics" && adminProfile?.role === "admin" && <AnalyticsSection />}
+          {activeSection === "visitor-analytics" && adminProfile?.role === "admin" && <VisitorAnalyticsSection />}
           {activeSection === "login-activity" && adminProfile?.role === "admin" && <LoginActivitySection />}
 
           <p className="mt-10 text-center text-[10px] text-gray-800">
@@ -4138,8 +4167,12 @@ function sectionTitle(
       return "Vehicle Settings";
     case "analytics":
       return "Website Analytics";
+    case "visitor-analytics":
+      return "Visitor Analytics";
     case "login-activity":
       return "Login Activity";
+    case "reports":
+      return "Report Center";
 
     default:
       return "Admin Dashboard";

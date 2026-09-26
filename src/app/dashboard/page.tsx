@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 import VehiclesManager from "@/components/dashboard/VehiclesManager";
 import BookingManager from "@/components/dashboard/BookingManager";
 import ServiceHistoryManager from "@/components/dashboard/ServiceHistoryManager";
+import NotificationBell from "@/components/dashboard/NotificationBell";
 import CKLogo from "@/components/CKLogo";
 import ThemeToggle from "@/components/ThemeToggle";
 type Profile = {
@@ -75,6 +76,7 @@ type Notification = {
   message: string;
   is_read: boolean;
   created_at: string;
+  booking_id: string | null;
 };
 
 type CustomerMessage = {
@@ -121,8 +123,10 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [messages, setMessages] = useState<CustomerMessage[]>([]);
   const [messageError, setMessageError] = useState("");
+  const [dataError, setDataError] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState("");
+  const [highlightBookingId, setHighlightBookingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -193,7 +197,7 @@ export default function DashboardPage() {
 
         supabase
           .from("notifications")
-          .select("id, title, message, is_read, created_at")
+          .select("id, title, message, is_read, created_at, booking_id")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false }),
 
@@ -253,6 +257,18 @@ export default function DashboardPage() {
           notificationResult.data as Notification[]
         );
       }
+
+      const failedSections = [
+        vehicleResult.error && "vehicles",
+        bookingResult.error && "bookings",
+        historyResult.error && "service history",
+        notificationResult.error && "notifications",
+      ].filter(Boolean);
+      setDataError(
+        failedSections.length > 0
+          ? `Some account data could not be loaded (${failedSections.join(", ")}). Please refresh and try again.`
+          : ""
+      );
 
       if (messageResult.error) {
         setMessageError(messageResult.error.message);
@@ -323,6 +339,24 @@ export default function DashboardPage() {
     );
   }
 
+  async function markAllNotificationsRead() {
+    if (!profile?.id) return;
+    await supabase
+      .from("notifications")
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq("user_id", profile.id)
+      .eq("is_read", false);
+
+    setNotifications((current) =>
+      current.map((item) => ({ ...item, is_read: true }))
+    );
+  }
+
+  function openBookingFromNotification(bookingId: string) {
+    setHighlightBookingId(bookingId);
+    openSection("bookings");
+  }
+
   async function markMessageRead(id: string) {
     await supabase
       .from("message_recipients")
@@ -376,20 +410,23 @@ export default function DashboardPage() {
 
   <div className="flex items-center gap-2">
     <ThemeToggle />
-    <button
-      onClick={() => openSection("notifications")}
-      className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-[#111] transition hover:border-red-700 hover:text-red-500"
-    >
-      <Bell size={19} />
-
-      {unreadNotifications > 0 && (
-        <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white">
-          {unreadNotifications}
-        </span>
-      )}
-    </button>
+    <NotificationBell
+      notifications={notifications}
+      onMarkRead={markNotificationRead}
+      onMarkAllRead={markAllNotificationsRead}
+      onViewAll={() => openSection("notifications")}
+      onOpenBooking={openBookingFromNotification}
+    />
   </div>
 </header>
+
+      {dataError && (
+        <div className="mx-auto mt-4 max-w-[1500px] px-5 md:px-8">
+          <p role="alert" className="rounded-xl border border-amber-700/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-200">
+            {dataError}
+          </p>
+        </div>
+      )}
        
 
       {/* MOBILE OVERLAY */}
@@ -511,18 +548,13 @@ export default function DashboardPage() {
 
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              <button
-                onClick={() => openSection("notifications")}
-                className="relative rounded-xl border border-white/10 bg-[#111] p-3"
-              >
-                <Bell size={20} />
-
-                {unreadNotifications > 0 && (
-                  <span className="absolute -right-2 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold">
-                    {unreadNotifications}
-                  </span>
-                )}
-              </button>
+              <NotificationBell
+                notifications={notifications}
+                onMarkRead={markNotificationRead}
+                onMarkAllRead={markAllNotificationsRead}
+                onViewAll={() => openSection("notifications")}
+                onOpenBooking={openBookingFromNotification}
+              />
             </div>
           </div>
 
@@ -540,7 +572,11 @@ export default function DashboardPage() {
            
 
           {activeSection === "bookings" && (
-            <BookingManager onAddVehicle={() => openSection("vehicles")} />
+            <BookingManager
+              onAddVehicle={() => openSection("vehicles")}
+              highlightBookingId={highlightBookingId}
+              onHighlightHandled={() => setHighlightBookingId(null)}
+            />
           )}
 
           {activeSection === "history" && (
