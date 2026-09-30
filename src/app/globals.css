@@ -131,6 +131,76 @@ a { text-decoration: none; }
   color: #f8fafc !important;
 }
 
+.portal-surface .admin-alert--success,
+.theme-root[data-theme="light"] .portal-surface .admin-alert--success,
+.theme-root[data-theme="dark"] .portal-surface .admin-alert--success {
+  border-color: #6ee7b7 !important;
+  background: #ecfdf5 !important;
+  color: #064e3b !important;
+}
+
+.portal-surface .admin-alert--error,
+.theme-root[data-theme="light"] .portal-surface .admin-alert--error,
+.theme-root[data-theme="dark"] .portal-surface .admin-alert--error {
+  border-color: #fca5a5 !important;
+  background: #fef2f2 !important;
+  color: #7f1d1d !important;
+}
+
+.portal-surface .admin-alert--warning,
+.theme-root[data-theme="light"] .portal-surface .admin-alert--warning,
+.theme-root[data-theme="dark"] .portal-surface .admin-alert--warning {
+  border-color: #fcd34d !important;
+  background: #fffbeb !important;
+  color: #78350f !important;
+}
+
+.portal-surface .admin-alert--info,
+.theme-root[data-theme="light"] .portal-surface .admin-alert--info,
+.theme-root[data-theme="dark"] .portal-surface .admin-alert--info {
+  border-color: #7dd3fc !important;
+  background: #eff6ff !important;
+  color: #1e3a8a !important;
+}
+
+.portal-surface .admin-status-badge,
+.theme-root[data-theme="light"] .portal-surface .admin-status-badge,
+.theme-root[data-theme="dark"] .portal-surface .admin-status-badge {
+  font-weight: 700 !important;
+}
+
+.portal-surface .admin-status-active,
+.theme-root[data-theme="light"] .portal-surface .admin-status-active,
+.theme-root[data-theme="dark"] .portal-surface .admin-status-active {
+  border-color: #86efac !important;
+  background: #dcfce7 !important;
+  color: #166534 !important;
+}
+
+.portal-surface .admin-status-inactive,
+.theme-root[data-theme="light"] .portal-surface .admin-status-inactive,
+.theme-root[data-theme="dark"] .portal-surface .admin-status-inactive {
+  border-color: #fca5a5 !important;
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+}
+
+.portal-surface .admin-status-pending,
+.theme-root[data-theme="light"] .portal-surface .admin-status-pending,
+.theme-root[data-theme="dark"] .portal-surface .admin-status-pending {
+  border-color: #fcd34d !important;
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+.portal-surface .admin-status-info,
+.theme-root[data-theme="light"] .portal-surface .admin-status-info,
+.theme-root[data-theme="dark"] .portal-surface .admin-status-info {
+  border-color: #7dd3fc !important;
+  background: #e0f2fe !important;
+  color: #075985 !important;
+}
+
 .theme-root[data-theme="light"] .portal-surface [class~="bg-[#070707]"],
 .theme-root[data-theme="light"] .portal-surface [class~="bg-[#080808]"],
 .theme-root[data-theme="light"] .portal-surface [class~="bg-[#090909]"],
@@ -151,10 +221,176 @@ a { text-decoration: none; }
   color: #0f172a !important;
 }
 
+.theme-root[data-theme="light"] .portal-surface .admin-view-site-link,
+.theme-root[data-theme="light"] .portal-surface .admin-view-site-link .text-white,
+.theme-root[data-theme="light"] .portal-surface .admin-view-site-link svg {
+  color: #ffffff !important;
+}
+
 .theme-root[data-theme="light"] .portal-surface [class~="text-gray-400"],
 .theme-root[data-theme="light"] .portal-surface [class~="text-gray-500"],
 .theme-root[data-theme="light"] .portal-surface [class~="text-gray-600"] {
   color: #64748b !important;
+}
+
+.portal-surface .service-icon-picker {
+  color: #f8fafc !important;
+  background: #0c111a !important;
+  border-color: #334155 !important;
+  scrollbar-width: thin;
+  scrollbar-color: #1683ff #111827;
+}
+
+.portal-surface .service-icon-picker::-webkit-scrollbar {
+  width: 8px;
+}
+
+.portal-surface .service-icon-picker::-webkit-scrollbar-thumb {
+  border: 2px solid #111827;
+  border-radius: 999px;
+  background: #1683ff;
+}
+
+.portal-surface .service-icon-picker::-webkit-scrollbar-track {
+  background: #111827;
+}
+
+.portal-surface .service-icon-picker-title,
+.theme-root[data-theme="light"] .portal-surface .service-icon-picker-title {
+  color: #ffffff !important;
+}
+
+.portal-surface .service-icon-picker-subtitle,
+.portal-surface .service-icon-caption,
+.portal-surface .service-icon-picker-content > p,
+.theme-root[data-theme="light"] .portal-surface .service-icon-picker-subtitle,
+.theme-root[data-theme="light"] .portal-surface .service-icon-caption,
+.theme-root[data-theme="light"] .portal-surface .service-icon-picker-content > p {
+  color: #94a3b8 !important;
+}
+
+.portal-surface .service-icon-preview,
+.theme-root[data-theme="light"] .portal-surface .service-icon-preview,
+.theme-root[data-theme="dark"] .portal-surface .service-icon-preview {
+  border-color: #cbd5e1 !important;
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.portal-surface .service-icon-preview-name,
+.theme-root[data-theme="light"] .portal-surface .service-icon-preview-name,
+.theme-root[data-theme="dark"] .portal-surface .service-icon-preview-name {
+  color: #0f172a !important;
+}
+
+.portal-surface .service-icon-preview-caption,
+.theme-root[data-theme="light"] .portal-surface .service-icon-preview-caption,
+.theme-root[data-theme="dark"] .portal-surface .service-icon-preview-caption {
+  color: #475569 !important;
+}
+
+.portal-surface .service-icon-preview-box,
+.theme-root[data-theme="light"] .portal-surface .service-icon-preview-box,
+.theme-root[data-theme="dark"] .portal-surface .service-icon-preview-box {
+  background: #fee2e2 !important;
+}
+
+.portal-surface .service-icon-preview-glyph,
+.theme-root[data-theme="light"] .portal-surface .service-icon-preview-glyph,
+.theme-root[data-theme="dark"] .portal-surface .service-icon-preview-glyph {
+  color: #ef4444 !important;
+}
+
+.portal-surface .service-icon-choose-button,
+.theme-root[data-theme="light"] .portal-surface .service-icon-choose-button,
+.theme-root[data-theme="dark"] .portal-surface .service-icon-choose-button {
+  border-color: #2563eb !important;
+  background: #2563eb !important;
+  color: #ffffff !important;
+}
+
+.portal-surface .service-icon-choose-button:hover,
+.theme-root[data-theme="light"] .portal-surface .service-icon-choose-button:hover,
+.theme-root[data-theme="dark"] .portal-surface .service-icon-choose-button:hover {
+  border-color: #1d4ed8 !important;
+  background: #1d4ed8 !important;
+}
+
+.portal-surface .service-icon-clear-button,
+.theme-root[data-theme="light"] .portal-surface .service-icon-clear-button,
+.theme-root[data-theme="dark"] .portal-surface .service-icon-clear-button {
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #334155 !important;
+}
+
+.portal-surface .service-icon-clear-button:hover,
+.theme-root[data-theme="light"] .portal-surface .service-icon-clear-button:hover,
+.theme-root[data-theme="dark"] .portal-surface .service-icon-clear-button:hover {
+  background: #f8fafc !important;
+}
+
+.portal-surface .service-icon-search,
+.theme-root[data-theme="light"] .portal-surface .service-icon-search {
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  background: #ffffff !important;
+}
+
+.portal-surface .service-icon-search::placeholder,
+.theme-root[data-theme="light"] .portal-surface .service-icon-search::placeholder {
+  color: #64748b !important;
+  opacity: 1;
+}
+
+.portal-surface .service-icon-category,
+.theme-root[data-theme="light"] .portal-surface .service-icon-category {
+  color: #cbd5e1 !important;
+  border-color: #64748b !important;
+  background: transparent !important;
+}
+
+.portal-surface .service-icon-category:hover,
+.theme-root[data-theme="light"] .portal-surface .service-icon-category:hover {
+  color: #ffffff !important;
+  border-color: #60a5fa !important;
+}
+
+.portal-surface .service-icon-category.is-active,
+.theme-root[data-theme="light"] .portal-surface .service-icon-category.is-active {
+  color: #ffffff !important;
+  border-color: #60a5fa !important;
+  background: #2563eb !important;
+}
+
+.portal-surface .service-icon-card,
+.theme-root[data-theme="light"] .portal-surface .service-icon-card {
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+  background: #111827 !important;
+}
+
+.portal-surface .service-icon-card:hover,
+.theme-root[data-theme="light"] .portal-surface .service-icon-card:hover {
+  border-color: #60a5fa !important;
+  background: #13233a !important;
+}
+
+.portal-surface .service-icon-card.is-selected,
+.theme-root[data-theme="light"] .portal-surface .service-icon-card.is-selected {
+  color: #ffffff !important;
+  border-color: #3b82f6 !important;
+  background: #102741 !important;
+}
+
+.portal-surface .service-icon-card-icon,
+.theme-root[data-theme="light"] .portal-surface .service-icon-card-icon {
+  color: #38bdf8 !important;
+}
+
+.portal-surface .service-icon-name,
+.theme-root[data-theme="light"] .portal-surface .service-icon-name {
+  color: #f1f5f9 !important;
 }
 
 .theme-root[data-theme="light"] .portal-surface input,

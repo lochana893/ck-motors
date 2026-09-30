@@ -605,13 +605,13 @@ export default function ServiceRecordManager() {
       </div>
 
       {error && (
-        <div className="mb-5 rounded-xl border border-red-900/60 bg-red-950/20 p-4 text-xs text-red-400">
+        <div className="admin-alert admin-alert--error mb-5 rounded-xl border p-4 text-xs font-semibold">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="mb-5 rounded-xl border border-green-900/60 bg-green-950/20 p-4 text-xs text-green-400">
+        <div className="admin-alert admin-alert--success mb-5 rounded-xl border p-4 text-xs font-semibold">
           {success}
         </div>
       )}

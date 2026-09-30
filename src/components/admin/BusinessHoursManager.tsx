@@ -97,7 +97,7 @@ export default function BusinessHoursManager() {
     <section className="space-y-6">
       <div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#63b4ff]">Appointment Setup</p><h2 className="mt-1 text-2xl font-black">Business Hours & Booking Slots</h2><p className="mt-2 text-xs text-gray-500">Available slots are checked again in the database when a booking is submitted, so parallel requests cannot overbook a slot.</p></div>
       {error && <p role="alert" className="rounded-lg border border-red-900/60 bg-red-950/20 p-3 text-xs text-red-300">{error}</p>}
-      {notice && <p role="status" className="rounded-lg border border-[#1688ff]/30 bg-[#101d2b] p-3 text-xs text-[#b9ddff]">{notice}</p>}
+      {notice && <p role="status" className="admin-alert admin-alert--success rounded-lg border p-3 text-xs font-semibold">{notice}</p>}
       <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#111]">
         <table className="w-full min-w-[760px] text-left text-xs">
           <thead className="border-b border-white/10 text-[10px] uppercase tracking-wider text-gray-500"><tr><th className="p-4">Day</th><th className="p-4">Open</th><th className="p-4">Opening</th><th className="p-4">Closing</th><th className="p-4">Slot minutes</th><th className="p-4">Bookings per slot</th><th className="p-4"></th></tr></thead>

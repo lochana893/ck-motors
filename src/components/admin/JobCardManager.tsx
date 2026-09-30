@@ -336,7 +336,7 @@ export default function JobCardManager() {
         <button type="button" onClick={startNew} className="inline-flex items-center gap-2 rounded-lg bg-[#087fe8] px-4 py-3 text-xs font-bold text-white hover:bg-[#1688ff]"><Plus size={16} /> New Job Card</button>
       </div>
       {error && <p role="alert" className="rounded-lg border border-red-900/60 bg-red-950/20 px-4 py-3 text-xs text-red-300">{error}</p>}
-      {notice && <p role="status" className="rounded-lg border border-[#1688ff]/30 bg-[#101d2b] px-4 py-3 text-xs text-[#b9ddff]">{notice}</p>}
+      {notice && <p role="status" className="admin-alert admin-alert--success rounded-lg border px-4 py-3 text-xs font-semibold">{notice}</p>}
       <div className="relative max-w-lg"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search job card, customer, phone, vehicle..." className="w-full rounded-lg border border-white/10 bg-[#111] py-3 pl-10 pr-4 text-sm outline-none focus:border-[#1688ff]" /></div>
       {showForm && (
         <form onSubmit={saveCard} className="space-y-4 rounded-2xl border border-[#1688ff]/30 bg-[#10151e] p-5 md:p-7">

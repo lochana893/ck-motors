@@ -1624,7 +1624,7 @@ export default function AdminPage() {
   return (
     <main className="portal-surface min-h-screen bg-[#080808] text-white">
       {galleryToast && (
-        <div role={galleryToast.type === "error" ? "alert" : "status"} aria-live={galleryToast.type === "error" ? "assertive" : "polite"} className={`fixed right-4 top-20 z-[160] flex max-w-[calc(100vw-2rem)] items-start gap-4 rounded-xl border px-4 py-3 text-sm shadow-2xl ${galleryToast.type === "error" ? "border-red-500/40 bg-[#261012] text-red-200" : "border-[#1688ff]/40 bg-[#101d2b] text-[#b9ddff]"}`}>
+        <div role={galleryToast.type === "error" ? "alert" : "status"} aria-live={galleryToast.type === "error" ? "assertive" : "polite"} className={`admin-alert admin-alert--${galleryToast.type} fixed right-4 top-20 z-[160] flex max-w-[calc(100vw-2rem)] items-start gap-4 rounded-xl border px-4 py-3 text-sm font-semibold shadow-2xl`}>
           <span>{galleryToast.message}</span>
           <button type="button" aria-label="Dismiss gallery notification" onClick={() => setGalleryToast(null)} className="rounded p-1 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1688ff]"><X size={15} /></button>
         </div>
@@ -1899,7 +1899,8 @@ export default function AdminPage() {
 
       {/* MAIN */}
         <section className={`admin-content min-h-screen w-full overflow-x-hidden transition-[margin,width] duration-300 ${sidebarOpen ? "lg:ml-[280px] lg:w-[calc(100%-280px)]" : "lg:ml-0 lg:w-full"}`}>        <div className="mx-auto max-w-[1500px] p-5 md:p-8">
-            <div className="mx-auto w-full max-w-[1500px] p-5 md:p-8">            <div>
+            <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-5 p-5 md:p-8 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.25em] text-red-500">
                 CK Motors Administration
               </p>
@@ -1909,16 +1910,16 @@ export default function AdminPage() {
               </h1>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3 lg:justify-end">
               <a
                 href="/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#1688ff]/50 bg-[#101d2b] px-3 py-2.5 text-xs font-bold text-white transition hover:border-[#63b4ff] hover:bg-[#142941] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#63b4ff]"
+                className="admin-view-site-link inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border border-[#0B4F8A] bg-[#062B55] px-3 py-2.5 text-xs font-semibold text-white transition hover:border-[#1683FF] hover:bg-[#0A3B72] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#63b4ff]"
               >
-                <Eye size={15} />
-                <span>View Customer Site</span>
-                <ExternalLink size={13} />
+                <Eye size={15} className="shrink-0 text-white" aria-hidden="true" />
+                <span className="text-white">View Customer Site</span>
+                <ExternalLink size={13} className="shrink-0 text-white" aria-hidden="true" />
               </a>
               <ThemeToggle />
               <AdminNotificationBell />
@@ -4350,8 +4351,17 @@ function StatusBadge({
 }: {
   status: string;
 }) {
+  const normalizedStatus = status.toLowerCase();
+  const statusClass = normalizedStatus === "pending"
+    ? "admin-status-pending"
+    : ["active", "approved", "confirmed", "completed", "available"].includes(normalizedStatus)
+      ? "admin-status-active"
+      : ["inactive", "disabled", "cancelled", "hidden", "unavailable"].includes(normalizedStatus)
+        ? "admin-status-inactive"
+        : "admin-status-info";
+
   return (
-    <span className="rounded-full border border-red-900/50 bg-red-950/30 px-3 py-1 text-[10px] font-bold text-red-400">
+    <span className={`admin-status-badge rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-wide ${statusClass}`}>
       {formatStatus(status)}
     </span>
   );
@@ -4366,10 +4376,10 @@ function StatusPill({
 }) {
   return (
     <span
-      className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase ${
+      className={`admin-status-badge rounded-full border px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${
         active
-          ? "bg-green-950/40 text-green-500"
-          : "bg-red-950/40 text-red-500"
+          ? "admin-status-active"
+          : "admin-status-inactive"
       }`}
     >
       {text}
@@ -4426,10 +4436,10 @@ function MessageBox({
 }) {
   return (
     <div
-      className={`mb-5 rounded-xl border px-4 py-3 text-xs ${
+      className={`admin-alert mb-5 rounded-xl border px-4 py-3 text-xs font-semibold ${
         type === "error"
-          ? "border-red-900/60 bg-red-950/20 text-red-400"
-          : "border-green-900/60 bg-green-950/20 text-green-400"
+          ? "admin-alert--error"
+          : "admin-alert--success"
       }`}
     >
       {message}

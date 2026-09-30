@@ -204,8 +204,8 @@ export default function SuppliersManager() {
         <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search suppliers..." className="w-full bg-transparent px-1 py-3 text-sm outline-none" />
       </div>
 
-      {error && <p className="mb-4 rounded-lg border border-red-900/40 bg-red-950/20 px-4 py-3 text-xs text-red-400">{error}</p>}
-      {message && <p className="mb-4 rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-4 py-3 text-xs text-emerald-400">{message}</p>}
+      {error && <p className="admin-alert admin-alert--error mb-4 rounded-lg border px-4 py-3 text-xs font-semibold">{error}</p>}
+      {message && <p className="admin-alert admin-alert--success mb-4 rounded-lg border px-4 py-3 text-xs font-semibold">{message}</p>}
 
       <div className="grid gap-3">
         {visibleSuppliers.map((supplier) => (

@@ -193,8 +193,8 @@ export default function TechniciansManager() {
         <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search technicians..." className="w-full bg-transparent px-1 py-3 text-sm outline-none" />
       </div>
 
-      {error && <p className="mb-4 rounded-lg border border-red-900/40 bg-red-950/20 px-4 py-3 text-xs text-red-400">{error}</p>}
-      {message && <p className="mb-4 rounded-lg border border-emerald-900/40 bg-emerald-950/20 px-4 py-3 text-xs text-emerald-400">{message}</p>}
+      {error && <p className="admin-alert admin-alert--error mb-4 rounded-lg border px-4 py-3 text-xs font-semibold">{error}</p>}
+      {message && <p className="admin-alert admin-alert--success mb-4 rounded-lg border px-4 py-3 text-xs font-semibold">{message}</p>}
 
       <div className="grid gap-3">
         {visibleTechnicians.map((technician) => (
@@ -210,7 +210,7 @@ export default function TechniciansManager() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${technician.status === "available" ? "bg-emerald-950/40 text-emerald-400" : technician.status === "busy" ? "bg-amber-950/40 text-amber-400" : "bg-gray-800 text-gray-500"}`}>
+                <span className={`admin-status-badge rounded-full border px-2 py-1 text-[10px] font-bold uppercase ${technician.status === "available" ? "admin-status-active" : technician.status === "busy" ? "admin-status-pending" : "admin-status-inactive"}`}>
                   {technician.status}
                 </span>
                 <button type="button" onClick={() => startEdit(technician)} className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold text-gray-400">

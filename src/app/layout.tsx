@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "CK Motors | Drive With Confidence",
-  description: "Professional vehicle maintenance, repairs and automotive care.",
+  description: "Professional vehicle maintenance, repairs and automotive care at CK Motors.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
