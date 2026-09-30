@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createElement, FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -12,6 +12,7 @@ import {
   DollarSign,
   Edit3,
   Eye,
+  ExternalLink,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -58,6 +59,8 @@ import AnalyticsSection from "@/components/admin/AnalyticsSection";
 import VisitorAnalyticsSection from "@/components/admin/VisitorAnalyticsSection";
 import AdminNotificationBell from "@/components/admin/AdminNotificationBell";
 import ReportCenter from "@/components/admin/reports/ReportCenter";
+import ServiceIconPicker from "@/components/admin/ServiceIconPicker";
+import { resolveServiceIcon } from "@/lib/service-icons";
 
 
 
@@ -172,6 +175,7 @@ type Service = {
   description: string | null;
   price_from: number | null;
   estimated_duration_minutes: number | null;
+  icon_name: string | null;
   active: boolean;
   created_at: string;
 };
@@ -231,13 +235,25 @@ const BOOKING_STATUSES = [
   "cancelled",
 ];
 
-const emptyServiceForm = {
+type ServiceForm = {
+  name: string;
+  slug: string;
+  category: string;
+  description: string;
+  price_from: string;
+  estimated_duration_minutes: string;
+  icon_name: string | null;
+  active: boolean;
+};
+
+const emptyServiceForm: ServiceForm = {
   name: "",
   slug: "",
   category: "",
   description: "",
   price_from: "",
   estimated_duration_minutes: "",
+  icon_name: "Wrench",
   active: true,
 };
 
@@ -294,7 +310,7 @@ export default function AdminPage() {
     useState<Service | null>(null);
 
   const [serviceForm, setServiceForm] =
-    useState(emptyServiceForm);
+    useState<ServiceForm>(emptyServiceForm);
 
   const [savingService, setSavingService] =
     useState(false);
@@ -462,6 +478,7 @@ export default function AdminPage() {
           description,
           price_from,
           estimated_duration_minutes,
+          icon_name,
           active,
           created_at
           `
@@ -1203,6 +1220,7 @@ export default function AdminPage() {
       estimated_duration_minutes:
         service.estimated_duration_minutes?.toString() ||
         "",
+      icon_name: service.icon_name || "Wrench",
       active: service.active,
     });
 
@@ -1248,6 +1266,7 @@ export default function AdminPage() {
               serviceForm.estimated_duration_minutes
             )
           : null,
+      icon_name: serviceForm.icon_name || null,
       active: serviceForm.active,
     };
 
@@ -1891,6 +1910,16 @@ export default function AdminPage() {
             </div>
 
             <div className="flex items-center gap-3">
+              <a
+                href="/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[#1688ff]/50 bg-[#101d2b] px-3 py-2.5 text-xs font-bold text-white transition hover:border-[#63b4ff] hover:bg-[#142941] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#63b4ff]"
+              >
+                <Eye size={15} />
+                <span>View Customer Site</span>
+                <ExternalLink size={13} />
+              </a>
               <ThemeToggle />
               <AdminNotificationBell />
 
@@ -2256,6 +2285,17 @@ export default function AdminPage() {
                   setServiceForm({
                     ...serviceForm,
                     category: value,
+                  })
+                }
+              />
+
+              <ServiceIconPicker
+                iconName={serviceForm.icon_name}
+                serviceName={serviceForm.name}
+                onChange={(icon_name) =>
+                  setServiceForm({
+                    ...serviceForm,
+                    icon_name,
                   })
                 }
               />
@@ -3908,14 +3948,14 @@ function ServicesSection({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {services.map((service) => (
-          <div
-            key={service.id}
-            className="rounded-2xl border border-white/10 bg-black/30 p-5"
-          >
-            <div className="mb-4 flex items-start justify-between">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-950/40 text-red-500">
-                <Wrench size={22} />
-              </div>
+            <div
+              key={service.id}
+              className="rounded-2xl border border-white/10 bg-black/30 p-5"
+            >
+              <div className="mb-4 flex items-start justify-between">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-950/40 text-red-500">
+                  {createElement(resolveServiceIcon(service.icon_name), { size: 22 })}
+                </div>
 
               <StatusPill
                 active={service.active}
@@ -3991,7 +4031,7 @@ function ServicesSection({
                 </div>
               )}
             </div>
-          </div>
+            </div>
         ))}
       </div>
     </Panel>
@@ -4057,6 +4097,14 @@ function GalleryModal({ item, onClose, onSubmit }: { item: GalleryItem | null; o
     };
   }, [preview]);
 
+  useEffect(() => {
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape" && !saving) onClose();
+    }
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose, saving]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
@@ -4074,41 +4122,55 @@ function GalleryModal({ item, onClose, onSubmit }: { item: GalleryItem | null; o
   }
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/80 p-4">
-      <div role="dialog" aria-modal="true" aria-labelledby="gallery-modal-title" className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#11151c] p-6 shadow-2xl shadow-black/60">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 id="gallery-modal-title" className="text-xl font-black">{item ? "Edit Media" : "Add Media"}</h2>
-          <button type="button" onClick={onClose} aria-label="Close media editor" className="rounded-lg border border-white/10 p-2 transition hover:text-[#63b4ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1688ff]"><X size={18} /></button>
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/80 p-3 sm:p-4"
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !saving) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="gallery-modal-title"
+        aria-describedby="gallery-modal-description"
+        className="gallery-media-modal max-h-[90dvh] w-full max-w-[600px] overflow-y-auto rounded-2xl border p-5 shadow-2xl shadow-black/60 sm:p-6"
+      >
+        <div className="sticky top-0 z-10 -mx-5 -mt-5 mb-5 flex items-center justify-between border-b border-[#26364b] bg-[#0b111b] px-5 py-4 sm:-mx-6 sm:-mt-6 sm:px-6">
+          <div>
+            <h2 id="gallery-modal-title" className="gallery-modal-title text-xl font-black">{item ? "Edit Media" : "Add Media"}</h2>
+            <p id="gallery-modal-description" className="gallery-modal-helper mt-1 text-xs">Manage public CK Motors gallery media.</p>
+          </div>
+          <button type="button" onClick={onClose} disabled={saving} aria-label="Close media editor" className="gallery-modal-close rounded-lg border p-2 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1688ff] disabled:cursor-not-allowed disabled:opacity-50"><X size={18} /></button>
         </div>
         <form onSubmit={submit} className="space-y-4">
-          <label className="block text-xs font-bold text-gray-400">Media Type
+          <label className="gallery-modal-label block text-xs font-bold">Media Type
             <select name="media_type" value={mediaType} onChange={(event) => {
               changeMediaType(event.target.value === "video" ? "video" : "image");
               if (fileInputRef.current) fileInputRef.current.value = "";
-            }} className="mt-2 w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1688ff]">
+            }} className="gallery-modal-control mt-2 rounded-lg px-4 py-3 text-sm">
               <option value="image">Image</option><option value="video">Video</option>
             </select>
           </label>
-          <label className="block text-xs font-bold text-gray-400">{mediaType === "image" ? "Image" : "Video"} {item ? "(optional replacement)" : "*"}
+          <label className="gallery-modal-label block text-xs font-bold">{mediaType === "image" ? "Image" : "Video"} {item ? "(optional replacement)" : "*"}
             <input ref={fileInputRef} name="file" required={!item} type="file" accept={mediaType === "image" ? "image/jpeg,image/png,image/webp" : "video/mp4,video/webm"} onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) setPreview(URL.createObjectURL(file));
-            }} className="mt-2 block w-full text-xs file:mr-3 file:rounded-md file:border-0 file:bg-[#17263a] file:px-3 file:py-2 file:font-bold file:text-[#8bc9ff]" />
-            <span className="mt-1 block text-[10px] text-gray-600">{mediaType === "image" ? "JPG, JPEG, PNG or WEBP · maximum 5 MB" : "MP4 or WEBM · maximum 100 MB"}</span>
+            }} className="gallery-modal-control mt-2 block rounded-lg p-2 text-xs file:mr-3 file:rounded-md file:border-0 file:bg-[#17263a] file:px-3 file:py-2 file:font-bold file:text-[#8bc9ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1688ff]" />
+            <span className="gallery-modal-helper mt-1 block text-[10px]">{mediaType === "image" ? "JPG, JPEG, PNG or WEBP · maximum 5 MB" : "MP4 or WEBM · maximum 100 MB"}</span>
           </label>
           {preview && (mediaType === "video"
             ? <video src={preview} poster={item?.thumbnail_url || undefined} controls playsInline preload="metadata" className="max-h-56 w-full rounded-xl bg-black object-contain" />
             : <img src={preview} alt="Selected image preview" className="max-h-56 w-full rounded-xl object-cover" />)}
           {saving && <p role="status" className="rounded-lg border border-[#1688ff]/20 bg-[#1688ff]/10 px-3 py-2 text-xs text-[#8bc9ff]">{item ? "Saving media..." : "Uploading media... Please wait."}</p>}
-          <label className="block text-xs font-bold text-gray-400">Title<input name="title" defaultValue={item?.title || ""} className="mt-2 w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm" /></label>
-          <label className="block text-xs font-bold text-gray-400">Caption<textarea name="caption" defaultValue={item?.caption || ""} rows={3} className="mt-2 w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm" /></label>
+          <label className="gallery-modal-label block text-xs font-bold">Title<input name="title" defaultValue={item?.title || ""} className="gallery-modal-control mt-2 rounded-lg px-4 py-3 text-sm" /></label>
+          <label className="gallery-modal-label block text-xs font-bold">Caption<textarea name="caption" defaultValue={item?.caption || ""} rows={3} className="gallery-modal-control mt-2 rounded-lg px-4 py-3 text-sm" /></label>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-xs font-bold text-gray-400">Display Order<input name="display_order" type="number" defaultValue={item?.display_order || 0} className="mt-2 w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm" /></label>
-            <label className="flex items-center gap-2 pt-6 text-xs font-bold text-gray-400"><input name="is_active" type="checkbox" defaultChecked={item?.is_active ?? true} /> Active</label>
+            <label className="gallery-modal-label block text-xs font-bold">Display Order<input name="display_order" type="number" defaultValue={item?.display_order || 0} className="gallery-modal-control mt-2 rounded-lg px-4 py-3 text-sm" /></label>
+            <label htmlFor="gallery-media-active" className="gallery-modal-label flex cursor-pointer items-center gap-2 pt-6 text-xs font-bold"><input id="gallery-media-active" name="is_active" type="checkbox" defaultChecked={item?.is_active ?? true} className="gallery-modal-checkbox h-4 w-4 rounded border-[#94a3b8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1688ff]" /> Active</label>
           </div>
-          <div className="flex justify-end gap-3 border-t border-white/10 pt-4">
-            <button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-white/10 px-4 py-3 text-xs font-bold disabled:opacity-50">Cancel</button>
-            <button disabled={saving} className="rounded-lg bg-[#087fe8] px-5 py-3 text-xs font-bold text-white disabled:opacity-50">{saving ? "Uploading..." : item ? "Save Media" : "Add Media"}</button>
+          <div className="gallery-modal-footer sticky bottom-[-1.25rem] -mx-5 -mb-5 flex justify-end gap-3 border-t px-5 py-4 sm:bottom-[-1.5rem] sm:-mx-6 sm:-mb-6 sm:px-6">
+            <button type="button" onClick={onClose} disabled={saving} className="gallery-modal-cancel rounded-lg border px-4 py-3 text-xs font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1688ff] disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
+            <button disabled={saving} className="gallery-modal-submit rounded-lg px-5 py-3 text-xs font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#63b4ff] disabled:cursor-not-allowed disabled:opacity-50">{saving ? "Uploading..." : item ? "Save Media" : "Add Media"}</button>
           </div>
         </form>
       </div>

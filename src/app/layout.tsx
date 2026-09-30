@@ -4,6 +4,11 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 
+export const metadata: Metadata = {
+  title: "CK Motors | Drive With Confidence",
+  description:
+    "Professional vehicle servicing, repairs, diagnostics and cleaning at CK Motors.",
+};
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -14,10 +19,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "CK Motors | Drive With Confidence",
-  description: "Professional vehicle maintenance, repairs and automotive care.",
-};
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

@@ -198,6 +198,83 @@ a { text-decoration: none; }
   color: #64748b !important;
 }
 
+.portal-surface .gallery-media-modal {
+  color: #ffffff !important;
+  background: #0b111b !important;
+  border-color: #26364b !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-title {
+  color: #ffffff !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-label {
+  color: #cbd5e1 !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-helper {
+  color: #94a3b8 !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-control {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-control::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-control:focus-visible {
+  outline: 2px solid #1688ff !important;
+  outline-offset: 2px !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-checkbox {
+  accent-color: #087cff !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-close {
+  color: #f8fafc !important;
+  border-color: #475569 !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-close:hover {
+  color: #ffffff !important;
+  background: #1e293b !important;
+  border-color: #1688ff !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-cancel {
+  color: #ffffff !important;
+  background: #172033 !important;
+  border-color: #475569 !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-cancel:hover {
+  background: #243249 !important;
+  border-color: #63b4ff !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-submit {
+  color: #ffffff !important;
+  background: #087fe8 !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-submit:hover {
+  background: #1688ff !important;
+}
+
+.portal-surface .gallery-media-modal .gallery-modal-footer {
+  background: #0b111b !important;
+  border-color: #26364b !important;
+}
+
 .theme-root[data-theme="dark"] .portal-surface .theme-toggle {
   border-color: #2a2f36 !important;
   background-color: #1b1e24 !important;
