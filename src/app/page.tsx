@@ -17,6 +17,7 @@ import {
   MessageCircle,
   Menu,
   Phone,
+  Play,
   ShieldCheck,
   Sparkles,
   Wrench,
@@ -41,8 +42,22 @@ type GalleryItem = {
   id: string;
   title: string | null;
   caption: string | null;
-  image_url: string;
+  media_type?: "image" | "video" | null;
+  image_url: string | null;
+  video_url: string | null;
+  thumbnail_url: string | null;
 };
+type Promotion = {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string | null;
+  start_date: string;
+  end_date: string;
+  cta_text: string;
+  cta_url: string | null;
+};
+type PublicReview = { id: string; customer_name: string; rating: number; review: string; created_at: string };
 
 const iconMap = {
   wrench: Wrench,
@@ -66,6 +81,8 @@ export default function Home() {
   const [servicesLoading, setServicesLoading] = useState(true);
   const [servicesError, setServicesError] = useState("");
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [reviews, setReviews] = useState<PublicReview[]>([]);
   const [selectedGallery, setSelectedGallery] = useState<GalleryItem | null>(null);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -76,7 +93,7 @@ export default function Home() {
 
   useEffect(() => {
     async function loadServices() {
-      const [{ data, error }, galleryResult, siteSettings] = await Promise.all([
+      const [{ data, error }, galleryResult, promotionResult, reviewResult, siteSettings] = await Promise.all([
         supabase
         .from("services")
         .select("id, name, category, description, price_from, estimated_duration_minutes")
@@ -84,10 +101,23 @@ export default function Home() {
         .order("name", { ascending: true }),
         supabase
           .from("gallery")
-          .select("id, title, caption, image_url")
+          .select("id, title, caption, image_url, media_type, video_url, thumbnail_url")
           .eq("is_active", true)
           .order("display_order", { ascending: true })
           .order("created_at", { ascending: false }),
+        supabase
+          .from("promotions")
+          .select("id, title, description, image_url, start_date, end_date, cta_text, cta_url")
+          .eq("is_active", true)
+          .lte("start_date", new Date().toISOString().slice(0, 10))
+          .gte("end_date", new Date().toISOString().slice(0, 10))
+          .order("end_date", { ascending: true })
+          .limit(6),
+        supabase
+          .from("approved_service_reviews")
+          .select("id, customer_name, rating, review, created_at")
+          .order("created_at", { ascending: false })
+          .limit(6),
         loadSiteSettings(supabase),
       ]);
 
@@ -98,11 +128,22 @@ export default function Home() {
       }
       setServicesLoading(false);
       if (!galleryResult.error) setGallery((galleryResult.data || []) as GalleryItem[]);
+      if (!promotionResult.error) setPromotions((promotionResult.data || []) as Promotion[]);
+      if (!reviewResult.error) setReviews((reviewResult.data || []) as PublicReview[]);
       setSettings(siteSettings);
     }
 
     void loadServices();
   }, [supabase]);
+
+  useEffect(() => {
+    if (!selectedGallery) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedGallery(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selectedGallery]);
 
   useEffect(() => {
     let mounted = true;
@@ -231,9 +272,22 @@ export default function Home() {
           </div>
           <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3">
             {gallery.map((item) => (
-              <button key={item.id} type="button" onClick={() => setSelectedGallery(item)} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm">
-                <img src={item.image_url} alt={item.title || "CK Motors workshop"} loading="lazy" className="aspect-[4/3] w-full object-cover transition duration-300 group-hover:scale-105" />
-                {(item.title || item.caption) && <span className="block p-4"><strong className="block text-sm">{item.title}</strong><span className="mt-1 block text-xs text-slate-500">{item.caption}</span></span>}
+              <button key={item.id} type="button" onClick={() => setSelectedGallery(item)} aria-label={`Open ${item.media_type === "video" ? "video" : "image"}: ${item.title || "CK Motors workshop media"}`} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-sm transition hover:border-[#1688ff]/60 hover:shadow-lg">
+                <span className="relative block aspect-[4/3] overflow-hidden bg-[#080c12]">
+                  {item.media_type === "video" && item.video_url ? (
+                    <>
+                      <video src={item.video_url} poster={item.thumbnail_url || undefined} playsInline preload="metadata" muted className="h-full w-full object-cover" />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/20 text-white transition group-hover:bg-black/35"><span className="flex h-12 w-12 items-center justify-center rounded-full border border-white/50 bg-[#080c12]/70 text-[#63b4ff]"><Play size={21} fill="currentColor" /></span></span>
+                      <span className="absolute left-3 top-3 rounded-md border border-white/20 bg-black/75 px-2 py-1 text-[10px] font-bold tracking-wider text-white">VIDEO</span>
+                    </>
+                  ) : item.image_url ? (
+                    <>
+                      <img src={item.image_url} alt={item.title || "CK Motors workshop"} loading="lazy" className="h-full w-full object-cover transition duration-300 group-hover:scale-105" />
+                      <span className="absolute left-3 top-3 rounded-md border border-white/20 bg-black/75 px-2 py-1 text-[10px] font-bold tracking-wider text-white">IMAGE</span>
+                    </>
+                  ) : null}
+                </span>
+                {(item.title || item.caption) && <span className="block border-t border-slate-100 p-4"><strong className="block text-sm">{item.title}</strong><span className="mt-1 block text-xs text-slate-500">{item.caption}</span></span>}
               </button>
             ))}
           </div>
@@ -242,15 +296,37 @@ export default function Home() {
 
       <section id="process" className="mx-auto max-w-7xl px-5 py-20 sm:px-8"><div className="rounded-2xl bg-[#17191f] px-6 py-12 text-white sm:px-12"><div className="max-w-xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-red-400">Simple from start to finish</p><h2 className="mt-3 text-3xl font-black sm:text-4xl">Book. Inspect. Repair. Drive.</h2></div><div className="mt-10 grid gap-6 sm:grid-cols-4">{["Book your visit", "We inspect", "We get to work", "Drive with confidence"].map((step, index) => <div key={step} className="border-l border-white/15 pl-4"><div className="text-sm font-black text-red-400">0{index + 1}</div><div className="mt-3 font-bold">{step}</div></div>)}</div></div></section>
 
+      {promotions.length > 0 && (
+        <section className="border-y border-[#223147] bg-[#0a1019]">
+          <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
+            <div className="mb-8 max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-[#63b4ff]">Limited-time offers</p><h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Current CK Motors promotions</h2></div>
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{promotions.map((promotion) => <article key={promotion.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#10151e] shadow-xl shadow-black/20">{promotion.image_url && <img src={promotion.image_url} alt="" loading="lazy" className="aspect-[16/9] w-full object-cover" />}<div className="p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-[#63b4ff]">Offer until {new Date(`${promotion.end_date}T00:00:00`).toLocaleDateString()}</p><h3 className="mt-2 text-lg font-black text-white">{promotion.title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{promotion.description}</p><a href={promotion.cta_url || "#contact"} target={promotion.cta_url?.startsWith("http") ? "_blank" : undefined} rel={promotion.cta_url?.startsWith("http") ? "noopener noreferrer" : undefined} className="mt-5 inline-flex rounded-lg border border-[#1688ff]/50 px-4 py-2.5 text-xs font-bold text-[#8bc9ff] transition hover:bg-[#1688ff]/10">{promotion.cta_text}</a></div></article>)}</div>
+          </div>
+        </section>
+      )}
+
+      {reviews.length > 0 && (
+        <section className="bg-[#0e1117]">
+          <div className="mx-auto max-w-7xl px-5 py-16 sm:px-8">
+            <div className="mb-8 max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-[#63b4ff]">Customer experiences</p><h2 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">Trusted by drivers</h2></div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">{reviews.map((review) => <article key={review.id} className="rounded-2xl border border-white/10 bg-[#141a23] p-5"><p aria-label={`${review.rating} out of 5 stars`} className="text-lg tracking-widest text-[#63b4ff]">{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</p><p className="mt-3 text-sm leading-6 text-slate-300">{review.review}</p><p className="mt-5 border-t border-white/10 pt-4 text-xs font-bold text-white">{review.customer_name}</p></article>)}</div>
+          </div>
+        </section>
+      )}
+
       <section id="contact" className="bg-red-600"><div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-12 text-white sm:px-8"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><h2 className="text-2xl font-black">{site?.contact_heading || "Ready for a smoother drive?"}</h2><p className="mt-2 text-sm text-red-100">{site?.contact_description || "Create your customer account and schedule your next service in minutes."}</p></div><Link href="/register" className="inline-flex w-fit items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-bold text-red-600 transition hover:bg-red-50">Schedule service <ArrowRight size={17} /></Link></div>{contactItems.length > 0 && <div className="grid gap-3 border-t border-white/20 pt-6 sm:grid-cols-2 lg:grid-cols-4">{contactItems.map(({ icon: Icon, label, value, href }) => { const content = <span className="flex min-w-0 items-start gap-3 rounded-xl bg-black/10 p-3 transition hover:bg-black/20"><Icon size={18} className="mt-0.5 shrink-0" /><span className="min-w-0"><span className="block text-xs text-red-100">{label}</span><span className="block whitespace-pre-line text-sm font-semibold">{value}</span></span></span>; return href ? <a key={`${label}-${value}`} href={href} target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noopener noreferrer" : undefined}>{content}</a> : <div key={`${label}-${value}`}>{content}</div>; })}</div>}</div></section>
 
-      <footer className="bg-[#111318] text-slate-400"><div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-8 sm:px-8"><div className="grid gap-6 md:grid-cols-3"><div><Link href="/" aria-label="CK Motors home"><CKLogo size="small" className="w-[120px] brightness-0 invert" /></Link><p className="mt-3 text-sm">{site?.tagline || "Reliable vehicle care in Sri Lanka."}</p></div><div><h3 className="text-xs font-bold uppercase tracking-wider text-white">Quick Links</h3><div className="mt-3 grid gap-2 text-sm"><a href="#services" className="hover:text-white">Services</a><a href="#gallery" className="hover:text-white">Gallery</a><a href="#contact" className="hover:text-white">Contact</a><Link href="/login" className="hover:text-white">Customer Login</Link></div></div><div><h3 className="text-xs font-bold uppercase tracking-wider text-white">Contact</h3><div className="mt-3 grid gap-2 text-sm">{site?.primary_phone && <a href={phoneUrl(site.primary_phone)} className="hover:text-white">{site.primary_phone}</a>}{site?.whatsapp_number && <a href={whatsappUrl(site.whatsapp_number, site.whatsapp_message)} target="_blank" rel="noopener noreferrer" className="hover:text-white">WhatsApp</a>}{site?.email && validEmail(site.email) && <a href={`mailto:${site.email}`} className="hover:text-white">{site.email}</a>}{site?.address && (site.maps_url ? <a href={site.maps_url} target="_blank" rel="noopener noreferrer" className="hover:text-white">{site.address}, {site.city_area}</a> : <span>{site.address}, {site.city_area}</span>)}</div></div></div><div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 text-xs"><span>© {new Date().getFullYear()} {site?.business_name || "CK Motors"}. All rights reserved.</span><PublicVisitCounter /><SehasCredit dark /></div>{site?.opening_hours && <div className="flex items-start gap-2 text-sm"><Clock3 size={16} className="mt-0.5 shrink-0" /><span className="whitespace-pre-line">{site.opening_hours}</span></div>}{[["Facebook", site?.facebook_url], ["Instagram", site?.instagram_url], ["TikTok", site?.tiktok_url], ["YouTube", site?.youtube_url]].some(([, href]) => href) && <div className="flex flex-wrap gap-4 text-sm">{[["Facebook", site?.facebook_url], ["Instagram", site?.instagram_url], ["TikTok", site?.tiktok_url], ["YouTube", site?.youtube_url]].filter(([, href]) => href).map(([label, href]) => <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="transition hover:text-white">{label}</a>)}</div>}</div></footer>
+      <footer className="bg-[#111318] text-slate-400"><div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-8 sm:px-8"><div className="grid gap-6 md:grid-cols-3"><div><Link href="/" aria-label="CK Motors home"><CKLogo size="small" className="w-[120px] brightness-0 invert" /></Link><p className="mt-3 text-sm">{site?.tagline || "Reliable vehicle care in Sri Lanka."}</p></div><div><h3 className="text-xs font-bold uppercase tracking-wider text-white">Quick Links</h3><div className="mt-3 grid gap-2 text-sm"><a href="#services" className="hover:text-white">Services</a><a href="#gallery" className="hover:text-white">Gallery</a><a href="#contact" className="hover:text-white">Contact</a><Link href="/login" className="hover:text-white">Customer Login</Link><Link href="/privacy" className="hover:text-white">Privacy Policy</Link><Link href="/terms" className="hover:text-white">Terms &amp; Conditions</Link></div></div><div><h3 className="text-xs font-bold uppercase tracking-wider text-white">Contact</h3><div className="mt-3 grid gap-2 text-sm">{site?.primary_phone && <a href={phoneUrl(site.primary_phone)} className="hover:text-white">{site.primary_phone}</a>}{site?.whatsapp_number && <a href={whatsappUrl(site.whatsapp_number, site.whatsapp_message)} target="_blank" rel="noopener noreferrer" className="hover:text-white">WhatsApp</a>}{site?.email && validEmail(site.email) && <a href={`mailto:${site.email}`} className="hover:text-white">{site.email}</a>}{site?.address && (site.maps_url ? <a href={site.maps_url} target="_blank" rel="noopener noreferrer" className="hover:text-white">{site.address}, {site.city_area}</a> : <span>{site.address}, {site.city_area}</span>)}</div></div></div><div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 text-xs"><span>© {new Date().getFullYear()} {site?.business_name || "CK Motors"}. All rights reserved.</span><PublicVisitCounter /><SehasCredit dark /></div>{site?.opening_hours && <div className="flex items-start gap-2 text-sm"><Clock3 size={16} className="mt-0.5 shrink-0" /><span className="whitespace-pre-line">{site.opening_hours}</span></div>}{[["Facebook", site?.facebook_url], ["Instagram", site?.instagram_url], ["TikTok", site?.tiktok_url], ["YouTube", site?.youtube_url]].some(([, href]) => href) && <div className="flex flex-wrap gap-4 text-sm">{[["Facebook", site?.facebook_url], ["Instagram", site?.instagram_url], ["TikTok", site?.tiktok_url], ["YouTube", site?.youtube_url]].filter(([, href]) => href).map(([label, href]) => <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="transition hover:text-white">{label}</a>)}</div>}</div></footer>
       {selectedGallery && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4" onClick={() => setSelectedGallery(null)}>
-          <div className="relative max-h-[90vh] max-w-5xl" onClick={(event) => event.stopPropagation()}>
-            <button type="button" onClick={() => setSelectedGallery(null)} className="absolute right-2 top-2 rounded-full bg-black/70 p-2 text-white" aria-label="Close gallery preview"><X size={18} /></button>
-            <img src={selectedGallery.image_url} alt={selectedGallery.title || "CK Motors workshop"} className="max-h-[82vh] max-w-full rounded-xl object-contain" />
-            {(selectedGallery.title || selectedGallery.caption) && <div className="rounded-b-xl bg-white p-4 text-slate-900"><p className="font-bold">{selectedGallery.title}</p><p className="mt-1 text-sm text-slate-500">{selectedGallery.caption}</p></div>}
+          <div role="dialog" aria-modal="true" aria-label={selectedGallery.title || "Gallery media"} className="relative max-h-[90vh] max-w-5xl overflow-hidden rounded-xl border border-white/15 bg-[#10151e] shadow-2xl shadow-[#1688ff]/10" onClick={(event) => event.stopPropagation()}>
+            <button type="button" onClick={() => setSelectedGallery(null)} className="absolute right-3 top-3 z-10 rounded-full bg-black/75 p-2 text-white transition hover:text-[#63b4ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1688ff]" aria-label="Close gallery preview"><X size={18} /></button>
+            {selectedGallery.media_type === "video" && selectedGallery.video_url ? (
+              <video src={selectedGallery.video_url} poster={selectedGallery.thumbnail_url || undefined} controls playsInline preload="metadata" className="max-h-[82vh] max-w-full bg-black" />
+            ) : selectedGallery.image_url ? (
+              <img src={selectedGallery.image_url} alt={selectedGallery.title || "CK Motors workshop"} className="max-h-[82vh] max-w-full object-contain" />
+            ) : null}
+            {(selectedGallery.title || selectedGallery.caption) && <div className="bg-[#10151e] p-4 text-white"><p className="font-bold">{selectedGallery.title}</p><p className="mt-1 text-sm text-slate-400">{selectedGallery.caption}</p></div>}
           </div>
         </div>
       )}

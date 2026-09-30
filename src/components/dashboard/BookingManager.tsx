@@ -41,19 +41,6 @@ type Booking = {
   vehicle_id: string;
 };
 
-const TIME_SLOTS = [
-  "08:00",
-  "09:00",
-  "10:00",
-  "11:00",
-  "12:00",
-  "13:00",
-  "14:00",
-  "15:00",
-  "16:00",
-  "17:00",
-];
-
 function getToday() {
   const now = new Date();
   const year = now.getFullYear();
@@ -77,6 +64,9 @@ export default function BookingManager({
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [availableTimes, setAvailableTimes] = useState<Array<{ slot_time: string; remaining_capacity: number }>>([]);
+  const [loadingTimes, setLoadingTimes] = useState(false);
+  const [slotError, setSlotError] = useState("");
 
   const [vehicleId, setVehicleId] = useState("");
   const [serviceId, setServiceId] = useState("");
@@ -172,6 +162,31 @@ export default function BookingManager({
   }, [loadData]);
 
   useEffect(() => {
+    if (!bookingDate) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setLoadingTimes(true);
+      setSlotError("");
+      void supabase.rpc("get_available_booking_slots", { target_date: bookingDate }).then(({ data, error: availabilityError }) => {
+        if (!active) return;
+        if (availabilityError) {
+          setSlotError(`Available times could not be loaded: ${availabilityError.message}`);
+          setAvailableTimes([]);
+          setBookingTime("");
+        } else {
+          const slots = (data || []) as Array<{ slot_time: string; remaining_capacity: number }>;
+          setAvailableTimes(slots);
+        }
+        setLoadingTimes(false);
+      });
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [bookingDate, supabase]);
+
+  useEffect(() => {
     if (!highlightBookingId || loading) return;
     const element = document.getElementById(`booking-${highlightBookingId}`);
     element?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -220,6 +235,10 @@ export default function BookingManager({
 
     if (!bookingTime) {
       setError("Please select a time.");
+      return;
+    }
+    if (!availableTimes.some((slot) => slot.slot_time === bookingTime)) {
+      setError("That appointment slot is no longer available. Please choose another time.");
       return;
     }
 
@@ -278,6 +297,9 @@ export default function BookingManager({
     setServiceId("");
     setBookingDate("");
     setBookingTime("");
+    setAvailableTimes([]);
+    setLoadingTimes(false);
+    setSlotError("");
     setMileage("");
     setProblemDescription("");
 
@@ -417,9 +439,13 @@ export default function BookingManager({
                   type="date"
                   min={getToday()}
                   value={bookingDate}
-                  onChange={(e) =>
-                    setBookingDate(e.target.value)
-                  }
+                  onChange={(e) => {
+                    setBookingTime("");
+                    setAvailableTimes([]);
+                    setLoadingTimes(false);
+                    setSlotError("");
+                    setBookingDate(e.target.value);
+                  }}
                   className="w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm outline-none focus:border-red-600"
                 />
               </div>
@@ -432,21 +458,23 @@ export default function BookingManager({
 
                 <select
                   value={bookingTime}
+                  disabled={!bookingDate || loadingTimes || !!slotError}
                   onChange={(e) =>
                     setBookingTime(e.target.value)
                   }
                   className="w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm outline-none focus:border-red-600"
                 >
                   <option value="">
-                    Choose a time
+                    {loadingTimes ? "Loading available times..." : bookingDate ? "Choose an available time" : "Choose a date first"}
                   </option>
 
-                  {TIME_SLOTS.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
+                  {availableTimes.map((slot) => (
+                    <option key={slot.slot_time} value={slot.slot_time}>
+                      {slot.slot_time} · {slot.remaining_capacity} available
                     </option>
                   ))}
                 </select>
+                {slotError ? <p role="alert" className="mt-2 text-[10px] text-red-400">{slotError}</p> : bookingDate && !loadingTimes && availableTimes.length === 0 ? <p role="status" className="mt-2 text-[10px] text-amber-300">No appointment times are available for this date. It may be closed, blocked or fully booked.</p> : null}
               </div>
 
               {/* MILEAGE */}

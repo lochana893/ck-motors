@@ -39,6 +39,15 @@ type ExistingRecord = {
   booking_id: string | null;
 };
 
+type JobCardOption = {
+  id: string;
+  job_card_number: string;
+  booking_id: string | null;
+  customer_id: string;
+  vehicle_id: string;
+  status: string;
+};
+
 type Service = {
   id: string;
   name: string;
@@ -75,6 +84,7 @@ export default function ServiceRecordManager() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [existingRecords, setExistingRecords] = useState<ExistingRecord[]>([]);
+  const [jobCards, setJobCards] = useState<JobCardOption[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [inventoryParts, setInventoryParts] = useState<Array<{
     id: string;
@@ -90,6 +100,7 @@ export default function ServiceRecordManager() {
   const [selectedBookingId, setSelectedBookingId] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
+  const [selectedJobCardId, setSelectedJobCardId] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
   const [newCustomer, setNewCustomer] = useState({ full_name: "", email: "", phone: "" });
   const [temporaryPassword, setTemporaryPassword] = useState("");
@@ -127,6 +138,7 @@ export default function ServiceRecordManager() {
       profileResult,
       vehicleResult,
       recordsResult,
+      jobCardResult,
       serviceResult,
       inventoryResult,
     ] = await Promise.all([
@@ -159,6 +171,12 @@ export default function ServiceRecordManager() {
         .select("booking_id"),
 
       supabase
+        .from("job_cards")
+        .select("id, job_card_number, booking_id, customer_id, vehicle_id, status")
+        .order("created_at", { ascending: false })
+        .limit(500),
+
+      supabase
         .from("services")
         .select("id, name, active")
         .eq("active", true)
@@ -187,6 +205,12 @@ export default function ServiceRecordManager() {
 
     if (recordsResult.data) {
       setExistingRecords(recordsResult.data as ExistingRecord[]);
+    }
+
+    if (jobCardResult.error) {
+      setError(jobCardResult.error.message);
+    } else {
+      setJobCards((jobCardResult.data || []) as JobCardOption[]);
     }
 
     if (serviceResult.data) {
@@ -234,6 +258,11 @@ export default function ServiceRecordManager() {
   const selectedVehicle = vehicles.find(
     (vehicle) => vehicle.id === selectedBooking?.vehicle_id
   );
+  const activeJobCards = jobCards.filter((card) =>
+    !["delivered", "cancelled"].includes(card.status)
+    && card.customer_id === (flow === "booking" ? selectedBooking?.user_id : selectedCustomerId)
+    && card.vehicle_id === (flow === "booking" ? selectedBooking?.vehicle_id : selectedVehicleId)
+  );
   const selectedWalkInCustomer = profiles.find(
     (profile) => profile.id === selectedCustomerId
   );
@@ -246,6 +275,7 @@ export default function ServiceRecordManager() {
 
   function handleBookingChange(id: string) {
     setSelectedBookingId(id);
+    setSelectedJobCardId("");
 
     const booking = bookings.find((item) => item.id === id);
 
@@ -254,6 +284,7 @@ export default function ServiceRecordManager() {
     setServicesPerformed(
       booking.service_name_snapshot || "Vehicle Service"
     );
+    setSelectedJobCardId(jobCards.find((card) => card.booking_id === booking.id && !["delivered", "cancelled"].includes(card.status))?.id || "");
 
     setMileage(
       booking.mileage !== null
@@ -332,6 +363,7 @@ export default function ServiceRecordManager() {
     const createdVehicle = { ...data, user_id: selectedCustomerId };
     setVehicles((current) => [...current, createdVehicle]);
     setSelectedVehicleId(createdVehicle.id);
+    setSelectedJobCardId("");
     setNewVehicle({ registration_number: "", brand: "", model: "" });
   }
 
@@ -480,23 +512,40 @@ export default function ServiceRecordManager() {
       return;
     }
 
+    let followupWarning = "";
+    if (selectedJobCardId) {
+      const [{ error: linkError }, { error: statusError }] = await Promise.all([
+        supabase.from("service_records").update({ job_card_id: selectedJobCardId }).eq("id", record.id),
+        supabase.from("job_cards").update({ status: "delivered" }).eq("id", selectedJobCardId),
+      ]);
+      if (linkError || statusError) {
+        followupWarning = `Service record was created, but the job card could not be fully updated: ${linkError?.message || statusError?.message}`;
+      }
+    }
+
     if (flow === "booking" && selectedBooking) {
-      await supabase
+      const { error: bookingUpdateError } = await supabase
         .from("bookings")
         .update({ status: "completed" })
         .eq("id", selectedBooking.id);
+      if (bookingUpdateError) {
+        followupWarning = `${followupWarning ? `${followupWarning} ` : ""}The service record was saved, but the booking status could not be updated: ${bookingUpdateError.message}`;
+      }
     } else {
-      await supabase.from("notifications").insert({
+      const { error: notificationError } = await supabase.from("notifications").insert({
         user_id: selectedCustomerId,
         booking_id: null,
         type: "service_completed",
         title: "Service Invoice Ready",
         message: "Your CK Motors walk-in service invoice is ready.",
       });
+      if (notificationError) {
+        followupWarning = `${followupWarning ? `${followupWarning} ` : ""}The service record was saved, but the customer notification could not be created: ${notificationError.message}`;
+      }
     }
 
     setSuccess(
-      `Service record created successfully. Total: LKR ${Number(
+      `${followupWarning ? `${followupWarning} ` : ""}Service record created successfully. Total: LKR ${Number(
         record.total_cost
       ).toLocaleString()}`
     );
@@ -504,6 +553,7 @@ export default function ServiceRecordManager() {
     setSelectedBookingId("");
     setSelectedCustomerId("");
     setSelectedVehicleId("");
+    setSelectedJobCardId("");
     setCustomerSearch("");
     setTechnicianName("");
     setMileage("");
@@ -572,7 +622,10 @@ export default function ServiceRecordManager() {
             <button
               key={option}
               type="button"
-              onClick={() => setFlow(option)}
+              onClick={() => {
+                setFlow(option);
+                setSelectedJobCardId("");
+              }}
               className={`flex-1 rounded-lg px-4 py-3 text-xs font-bold ${flow === option ? "bg-red-600 text-white" : "text-gray-500 hover:bg-white/5"}`}
             >
               {option === "booking" ? "Booking Service" : "Walk-In Service"}
@@ -613,7 +666,7 @@ export default function ServiceRecordManager() {
             <>
               <Field label="Search Existing Customer">
                 <input value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Name or email" className="input-style" />
-                <select value={selectedCustomerId} onChange={(event) => { setSelectedCustomerId(event.target.value); setSelectedVehicleId(""); }} className="input-style mt-2">
+                <select value={selectedCustomerId} onChange={(event) => { setSelectedCustomerId(event.target.value); setSelectedVehicleId(""); setSelectedJobCardId(""); }} className="input-style mt-2">
                   <option value="">Choose customer</option>
                   {visibleCustomers.map((customer) => <option key={customer.id} value={customer.id}>{customer.full_name} — {customer.email}</option>)}
                 </select>
@@ -628,7 +681,7 @@ export default function ServiceRecordManager() {
               {selectedWalkInCustomer && (
                 <>
                   <Field label="Select Vehicle *">
-                    <SearchableVehicleSelect label="Vehicle" required value={walkInVehicles.find((vehicle) => vehicle.id === selectedVehicleId) ? `${walkInVehicles.find((vehicle) => vehicle.id === selectedVehicleId)?.registration_number} — ${walkInVehicles.find((vehicle) => vehicle.id === selectedVehicleId)?.brand} ${walkInVehicles.find((vehicle) => vehicle.id === selectedVehicleId)?.model}` : ""} options={walkInVehicles.map((vehicle) => `${vehicle.registration_number} — ${vehicle.brand} ${vehicle.model}`)} onChange={(value) => setSelectedVehicleId(walkInVehicles.find((vehicle) => `${vehicle.registration_number} — ${vehicle.brand} ${vehicle.model}` === value)?.id || "")} />
+                    <SearchableVehicleSelect label="Vehicle" required value={walkInVehicles.find((vehicle) => vehicle.id === selectedVehicleId) ? `${walkInVehicles.find((vehicle) => vehicle.id === selectedVehicleId)?.registration_number} — ${walkInVehicles.find((vehicle) => vehicle.id === selectedVehicleId)?.brand} ${walkInVehicles.find((vehicle) => vehicle.id === selectedVehicleId)?.model}` : ""} options={walkInVehicles.map((vehicle) => `${vehicle.registration_number} — ${vehicle.brand} ${vehicle.model}`)} onChange={(value) => { setSelectedVehicleId(walkInVehicles.find((vehicle) => `${vehicle.registration_number} — ${vehicle.brand} ${vehicle.model}` === value)?.id || ""); setSelectedJobCardId(""); }} />
                   </Field>
                   <Field label="Add Vehicle">
                     <div className="grid gap-2 sm:grid-cols-3">
@@ -698,6 +751,16 @@ export default function ServiceRecordManager() {
               className="input-style"
             />
           </Field>
+
+          {activeJobCards.length > 0 && (
+            <Field label="Link Job Card (optional)">
+              <select value={selectedJobCardId} onChange={(event) => setSelectedJobCardId(event.target.value)} className="input-style">
+                <option value="">Do not link a job card</option>
+                {activeJobCards.map((jobCard) => <option key={jobCard.id} value={jobCard.id}>{jobCard.job_card_number} · {jobCard.status.replaceAll("_", " ")}</option>)}
+              </select>
+              <p className="mt-1 text-[10px] text-gray-600">Saving this service record will link it to the job card and mark the card delivered.</p>
+            </Field>
+          )}
         </div>
 
         <div className="mt-5">
@@ -718,8 +781,8 @@ export default function ServiceRecordManager() {
         </div>
 
         {/* PARTS */}
-        <div className="mt-7 rounded-xl border border-white/10 bg-black/20 p-5">
-          <div className="mb-5 flex items-center justify-between">
+        <div className="parts-used mt-7 rounded-xl border border-white/10 bg-black/20 p-4 sm:p-5">
+          <div className="mb-5 flex min-w-0 flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-black">
                 Parts Used
@@ -732,24 +795,25 @@ export default function ServiceRecordManager() {
             <button
               type="button"
               onClick={addPart}
-              className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-xs font-bold"
+              className="flex shrink-0 items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-xs font-bold"
             >
               <Plus size={15} />
               Add Part
             </button>
           </div>
 
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             {parts.map((part, index) => (
               <div
                 key={index}
-                className="grid gap-3 rounded-xl border border-white/10 p-4 md:grid-cols-[1.5fr_1.2fr_1.2fr_.7fr_1fr_auto]"
+                className="parts-used-row min-w-0 gap-3 rounded-xl border border-white/10 bg-[#111]/40 p-3 sm:p-4"
               >
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-1">
+                  <label className="block text-[10px] font-semibold text-gray-500">Part Source</label>
                   <select
                     value={part.inventory_part_id}
                     onChange={(e) => selectInventoryPart(index, e.target.value)}
-                    className="input-style"
+                    className="input-style w-full min-w-0"
                   >
                     <option value="">Manual part</option>
                     {inventoryParts.map((inventoryPart) => (
@@ -758,7 +822,9 @@ export default function ServiceRecordManager() {
                       </option>
                     ))}
                   </select>
-
+                </div>
+                <div className="min-w-0 space-y-1">
+                  <label className="block text-[10px] font-semibold text-gray-500">Part Name</label>
                   <input
                     placeholder="Part name"
                     value={part.part_name}
@@ -769,55 +835,66 @@ export default function ServiceRecordManager() {
                         e.target.value
                       )
                     }
-                    className="input-style"
+                    className="input-style w-full min-w-0"
                   />
                 </div>
 
-                <input
-                  placeholder="Part number"
-                  value={part.part_number}
-                  onChange={(e) =>
-                    updatePart(
-                      index,
-                      "part_number",
-                      e.target.value
-                    )
-                  }
-                  className="input-style"
-                />
+                <div className="min-w-0 space-y-1">
+                  <label className="block text-[10px] font-semibold text-gray-500">Part Number</label>
+                  <input
+                    placeholder="Part number"
+                    value={part.part_number}
+                    onChange={(e) =>
+                      updatePart(
+                        index,
+                        "part_number",
+                        e.target.value
+                      )
+                    }
+                    className="input-style w-full min-w-0"
+                  />
+                </div>
 
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="Qty"
-                  value={part.quantity}
-                  onChange={(e) =>
-                    updatePart(
-                      index,
-                      "quantity",
-                      e.target.value
-                    )
-                  }
-                  className="input-style"
-                />
+                <div className="min-w-0 space-y-1">
+                  <label className="block text-[10px] font-semibold text-gray-500">Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Qty"
+                    value={part.quantity}
+                    onChange={(e) =>
+                      updatePart(
+                        index,
+                        "quantity",
+                        e.target.value
+                      )
+                    }
+                    className="input-style w-full min-w-0"
+                  />
+                </div>
 
-                <input
-                  type="number"
-                  min="0"
-                  placeholder="Unit price"
-                  value={part.unit_price}
-                  onChange={(e) =>
-                    updatePart(
-                      index,
-                      "unit_price",
-                      e.target.value
-                    )
-                  }
-                  className="input-style"
-                />
+                <div className="min-w-0 space-y-1">
+                  <label className="block text-[10px] font-semibold text-gray-500">Unit Price</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Unit price"
+                    value={part.unit_price}
+                    onChange={(e) =>
+                      updatePart(
+                        index,
+                        "unit_price",
+                        e.target.value
+                      )
+                    }
+                    className="input-style w-full min-w-0"
+                  />
+                </div>
 
-                <div className="flex items-center justify-center text-[10px] font-bold uppercase tracking-[0.18em] text-gray-500">
-                  {part.inventory_part_id ? "Linked" : "Manual"}
+                <div className="flex min-w-0 items-center justify-start xl:justify-center">
+                  <span className="max-w-full truncate rounded-full border border-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-gray-500">
+                    {part.inventory_part_id ? "Linked" : "Manual"}
+                  </span>
                 </div>
 
                 <button
@@ -825,7 +902,8 @@ export default function ServiceRecordManager() {
                   onClick={() =>
                     removePart(index)
                   }
-                  className="rounded-lg border border-white/10 p-3 text-gray-600 hover:text-red-500"
+                  aria-label={`Remove part ${index + 1}`}
+                  className="flex min-h-11 min-w-11 items-center justify-center justify-self-start rounded-lg border border-white/10 p-3 text-gray-400 hover:border-red-900/60 hover:text-red-500 xl:justify-self-center"
                 >
                   <Trash2 size={16} />
                 </button>

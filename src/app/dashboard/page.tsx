@@ -24,6 +24,8 @@ import { createClient } from "@/lib/supabase/client";
 import VehiclesManager from "@/components/dashboard/VehiclesManager";
 import BookingManager from "@/components/dashboard/BookingManager";
 import ServiceHistoryManager from "@/components/dashboard/ServiceHistoryManager";
+import JobCardProgress from "@/components/dashboard/JobCardProgress";
+import ServiceReviewForm from "@/components/dashboard/ServiceReviewForm";
 import NotificationBell from "@/components/dashboard/NotificationBell";
 import CKLogo from "@/components/CKLogo";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -63,11 +65,13 @@ type Booking = {
 
 type ServiceRecord = {
   id: string;
+  vehicle_id: string;
   service_date: string;
   services_performed: string;
   mileage: number | null;
   total_cost: number;
   next_service_date: string | null;
+  next_service_mileage: number | null;
 };
 
 type Notification = {
@@ -190,7 +194,7 @@ export default function DashboardPage() {
         supabase
           .from("service_records")
           .select(
-            "id, service_date, services_performed, mileage, total_cost, next_service_date"
+            "id, vehicle_id, service_date, services_performed, mileage, total_cost, next_service_date, next_service_mileage"
           )
           .eq("user_id", user.id)
           .order("service_date", { ascending: false }),
@@ -673,6 +677,13 @@ function DashboardHome({
     (item) => !item.is_read
   ).length;
 
+  const nextServiceRecord = history
+    .filter((record) => record.next_service_date || record.next_service_mileage !== null)
+    .sort((left, right) => (left.next_service_date || "9999-12-31").localeCompare(right.next_service_date || "9999-12-31"))[0];
+  const nextServiceVehicle = nextServiceRecord && vehicles.find((vehicle) => vehicle.id === nextServiceRecord.vehicle_id);
+  const dateDue = Boolean(nextServiceRecord?.next_service_date && nextServiceRecord.next_service_date <= new Date().toISOString().slice(0, 10));
+  const mileageDue = Boolean(nextServiceRecord?.next_service_mileage !== null && nextServiceRecord?.next_service_mileage !== undefined && nextServiceVehicle?.mileage !== null && nextServiceVehicle?.mileage !== undefined && nextServiceVehicle.mileage >= nextServiceRecord.next_service_mileage);
+
   return (
     <>
       <div className="mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -700,6 +711,18 @@ function DashboardHome({
           value={unread}
         />
       </div>
+
+      <JobCardProgress />
+      <ServiceReviewForm />
+
+      {nextServiceRecord && (
+        <section className="mb-8 rounded-2xl border border-[#1688ff]/20 bg-[#0d1420] p-5 md:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div><p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#63b4ff]">Vehicle care reminder</p><h2 className="mt-1 text-lg font-black">Next Service Due</h2><p className="mt-2 text-xs text-gray-400">{nextServiceVehicle?.registration_number || "Your vehicle"} · {nextServiceRecord.services_performed}</p>{nextServiceRecord.next_service_date && <p className="mt-1 text-xs text-gray-500">Recommended by {new Date(`${nextServiceRecord.next_service_date}T00:00:00`).toLocaleDateString()}</p>}{nextServiceRecord.next_service_mileage !== null && <p className="mt-1 text-xs text-gray-500">Recommended at {nextServiceRecord.next_service_mileage.toLocaleString()} km</p>}</div>
+            <span className={`rounded-full px-3 py-1 text-[10px] font-bold ${dateDue || mileageDue ? "bg-amber-950/60 text-amber-300" : "bg-[#102741] text-[#8bc9ff]"}`}>{dateDue || mileageDue ? "Due" : "Upcoming"}</span>
+          </div>
+        </section>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel

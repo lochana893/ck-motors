@@ -1,11 +1,12 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
   CalendarDays,
+  Clock3,
   Car,
   ClipboardList,
   DollarSign,
@@ -32,11 +33,15 @@ import {
   Activity,
   BarChart3,
   FileText,
+  Sparkles,
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
 import ServiceRecordManager from "@/components/admin/ServiceRecordManager";
 import ServiceInvoices from "@/components/admin/ServiceInvoices";
+import JobCardManager from "@/components/admin/JobCardManager";
+import MarketingAndAuditSection from "@/components/admin/MarketingAndAuditSection";
+import BusinessHoursManager from "@/components/admin/BusinessHoursManager";
 import CKLogo from "@/components/CKLogo";
 import ThemeToggle from "@/components/ThemeToggle";
 import WebsiteSettingsSection from "@/components/admin/WebsiteSettingsSection";
@@ -63,6 +68,9 @@ type Section =
   | "vehicles"
   | "services"
   | "records"
+  | "job-cards"
+  | "marketing"
+  | "business-hours"
   | "messages"
   | "gallery"
   | "website-settings"
@@ -190,8 +198,11 @@ type GalleryItem = {
   id: string;
   title: string | null;
   caption: string | null;
-  storage_path: string;
-  image_url: string;
+  storage_path: string | null;
+  image_url: string | null;
+  media_type?: "image" | "video" | null;
+  video_url: string | null;
+  thumbnail_url: string | null;
   is_active: boolean;
   display_order: number;
   created_at: string;
@@ -249,11 +260,12 @@ export default function AdminPage() {
   const [activeSection, setActiveSection] = useState<Section>(() => {
     if (typeof window === "undefined") return "dashboard";
     const requestedSection = new URLSearchParams(window.location.search).get("section");
-    const validSections: Section[] = ["dashboard", "bookings", "customers", "vehicles", "services", "records", "messages", "gallery", "website-settings", "users", "vehicle-settings", "inventory", "suppliers", "technicians", "analytics", "login-activity", "visitor-analytics", "reports"];
+    const validSections: Section[] = ["dashboard", "bookings", "customers", "vehicles", "services", "records", "job-cards", "marketing", "business-hours", "messages", "gallery", "website-settings", "users", "vehicle-settings", "inventory", "suppliers", "technicians", "analytics", "login-activity", "visitor-analytics", "reports"];
     return validSections.includes(requestedSection as Section) ? requestedSection as Section : "dashboard";
   });
 
-    const [sidebarOpen, setSidebarOpen] = useState(false);  
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [sidebarPreferenceLoaded, setSidebarPreferenceLoaded] = useState(false);
     const [loading, setLoading] = useState(true);
 
   const [adminProfile, setAdminProfile] =
@@ -270,6 +282,7 @@ export default function AdminPage() {
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [galleryToast, setGalleryToast] = useState<{ type: "error" | "success"; message: string } | null>(null);
 
   const [updatingBooking, setUpdatingBooking] =
     useState<string | null>(null);
@@ -484,7 +497,7 @@ export default function AdminPage() {
         .order("created_at", { ascending: false }),
       supabase
         .from("gallery")
-        .select("id, title, caption, storage_path, image_url, is_active, display_order, created_at")
+        .select("id, title, caption, storage_path, image_url, media_type, video_url, thumbnail_url, is_active, display_order, created_at")
         .order("display_order", { ascending: true })
         .order("created_at", { ascending: false }),
     ]);
@@ -547,6 +560,51 @@ export default function AdminPage() {
     return () => window.clearTimeout(timer);
   }, [loadAdminData]);
 
+  useEffect(() => {
+    const desktopQuery = window.matchMedia("(min-width: 1024px)");
+    const syncSidebar = () => {
+      if (desktopQuery.matches) {
+        const preference = window.localStorage.getItem("ck-admin-sidebar");
+        setSidebarOpen(preference === null || preference === "open");
+      } else {
+        setSidebarOpen(false);
+      }
+      setSidebarPreferenceLoaded(true);
+    };
+
+    syncSidebar();
+    desktopQuery.addEventListener("change", syncSidebar);
+    return () => desktopQuery.removeEventListener("change", syncSidebar);
+  }, []);
+
+  useEffect(() => {
+    if (sidebarPreferenceLoaded && window.matchMedia("(min-width: 1024px)").matches) {
+      window.localStorage.setItem("ck-admin-sidebar", sidebarOpen ? "open" : "closed");
+    }
+  }, [sidebarOpen, sidebarPreferenceLoaded]);
+
+  useEffect(() => {
+    if (!galleryToast) return;
+    const timer = window.setTimeout(() => setGalleryToast(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [galleryToast]);
+
+  useEffect(() => {
+    const desktopQuery = window.matchMedia("(min-width: 1024px)");
+    if (desktopQuery.matches || !sidebarOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [sidebarOpen]);
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.replace("/login");
@@ -555,7 +613,7 @@ export default function AdminPage() {
 
   function changeSection(section: Section) {
     setActiveSection(section);
-    setSidebarOpen(false);
+    if (window.matchMedia("(max-width: 1023px)").matches) setSidebarOpen(false);
     setSearch("");
     setError("");
     setSuccess("");
@@ -577,7 +635,7 @@ export default function AdminPage() {
     setSelectedCustomerIds([customer.id]);
     setMessageMode("individual");
     setActiveSection("messages");
-    setSidebarOpen(false);
+    if (window.matchMedia("(max-width: 1023px)").matches) setSidebarOpen(false);
     setError("");
     setSuccess("");
   }
@@ -1284,40 +1342,93 @@ export default function AdminPage() {
       setShowGalleryModal(true);
     }
 
+      function notifyGallery(type: "error" | "success", message: string) {
+        setError("");
+        setSuccess("");
+        setGalleryToast({ type, message });
+      }
+
+    function getGalleryStorageBucket(item: GalleryItem) {
+      if (item.video_url || item.image_url?.includes("/gallery-media/")) return "gallery-media";
+      return "gallery-images";
+    }
+
     async function saveGalleryItem(formData: FormData) {
       if (!["admin", "staff"].includes(adminProfile?.role || "")) return;
       const file = formData.get("file");
+      const mediaType = formData.get("media_type") === "video" ? "video" : "image";
       const title = String(formData.get("title") || "").trim() || null;
       const caption = String(formData.get("caption") || "").trim() || null;
       const isActive = formData.get("is_active") === "on";
       const displayOrder = Number(formData.get("display_order") || 0);
-      if (!editingGallery && !(file instanceof File)) {
-        setError("Please select an image.");
+      const previousMediaType = editingGallery?.media_type || "image";
+      const hasNewFile = file instanceof File && file.size > 0;
+      if (!editingGallery && !hasNewFile) {
+        notifyGallery("error", `Please select a ${mediaType}.`);
+        return;
+      }
+      if (editingGallery && mediaType !== previousMediaType && !hasNewFile) {
+        notifyGallery("error", "Select a file when changing the media type.");
         return;
       }
       setError("");
-      let storagePath = editingGallery?.storage_path || "";
-      let imageUrl = editingGallery?.image_url || "";
-      if (file instanceof File && file.size > 0) {
-        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
-          setError("Use a JPG, PNG, or WEBP image up to 5 MB.");
+      let storagePath = editingGallery?.storage_path || null;
+      let imageUrl = editingGallery?.image_url || null;
+      let videoUrl = editingGallery?.video_url || null;
+      let bucket = editingGallery ? getGalleryStorageBucket(editingGallery) : "gallery-media";
+      if (hasNewFile && file instanceof File) {
+        const acceptedTypes = mediaType === "image"
+          ? ["image/jpeg", "image/png", "image/webp"]
+          : ["video/mp4", "video/webm"];
+        const maximumSize = mediaType === "image" ? 5 * 1024 * 1024 : 100 * 1024 * 1024;
+        if (!acceptedTypes.includes(file.type)) {
+          notifyGallery("error", mediaType === "image"
+            ? "Choose a JPG, JPEG, PNG, or WEBP image."
+            : "Choose an MP4 or WEBM video.");
           return;
         }
-        storagePath = `${crypto.randomUUID()}-${file.name}`;
-        const upload = await supabase.storage.from("gallery-images").upload(storagePath, file, { contentType: file.type, upsert: false });
+        if (file.size > maximumSize) {
+          notifyGallery("error", mediaType === "image"
+            ? "Images must be 5 MB or smaller."
+            : "Videos must be 100 MB or smaller.");
+          return;
+        }
+        const extension = file.name.split(".").pop()?.toLowerCase();
+        const allowedExtensions = mediaType === "image"
+          ? ["jpg", "jpeg", "png", "webp"]
+          : ["mp4", "webm"];
+        if (!extension || !allowedExtensions.includes(extension)) {
+          notifyGallery("error", "The selected file extension does not match a supported media format.");
+          return;
+        }
+        bucket = "gallery-media";
+        storagePath = `gallery/${mediaType === "image" ? "images" : "videos"}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+        const upload = await supabase.storage.from(bucket).upload(storagePath, file, { contentType: file.type, upsert: false });
         if (upload.error) {
           console.error("Gallery storage upload failed:", {
             operation: "storage.upload",
-            bucket: "gallery-images",
+            bucket,
             path: storagePath,
             error: upload.error,
           });
-          setError(`Gallery image upload failed: ${upload.error.message}`);
+          notifyGallery("error", `Gallery ${mediaType} upload failed: ${upload.error.message}`);
           return;
         }
-        imageUrl = supabase.storage.from("gallery-images").getPublicUrl(storagePath).data.publicUrl;
+        const publicUrl = supabase.storage.from(bucket).getPublicUrl(storagePath).data.publicUrl;
+        imageUrl = mediaType === "image" ? publicUrl : null;
+        videoUrl = mediaType === "video" ? publicUrl : null;
       }
-      const payload = { title, caption, storage_path: storagePath, image_url: imageUrl, is_active: isActive, display_order: displayOrder };
+      const payload = {
+        title,
+        caption,
+        media_type: mediaType,
+        storage_path: storagePath,
+        image_url: imageUrl,
+        video_url: videoUrl,
+        thumbnail_url: editingGallery?.thumbnail_url || null,
+        is_active: isActive,
+        display_order: displayOrder,
+      };
       const result = editingGallery
         ? await supabase.from("gallery").update(payload).eq("id", editingGallery.id)
         : await supabase.from("gallery").insert(payload);
@@ -1327,42 +1438,56 @@ export default function AdminPage() {
           payload,
           error: result.error,
         });
-        setError(`Unable to save gallery item: ${result.error.message}`);
-        if (file instanceof File && storagePath && storagePath !== editingGallery?.storage_path) {
-          const cleanup = await supabase.storage.from("gallery-images").remove([storagePath]);
+        notifyGallery("error", `Unable to save gallery item: ${result.error.message}`);
+        if (hasNewFile && storagePath) {
+          const cleanup = await supabase.storage.from(bucket).remove([storagePath]);
           if (cleanup.error) {
             console.warn("Gallery upload cleanup failed:", cleanup.error);
           }
         }
         return;
       }
-      if (editingGallery && file instanceof File && editingGallery.storage_path !== storagePath) {
-        await supabase.storage.from("gallery-images").remove([editingGallery.storage_path]);
+      let cleanupWarning = "";
+      if (editingGallery && hasNewFile && editingGallery.storage_path) {
+        const oldBucket = getGalleryStorageBucket(editingGallery);
+        const cleanup = await supabase.storage.from(oldBucket).remove([editingGallery.storage_path]);
+        if (cleanup.error) {
+          cleanupWarning = `Media was updated, but the previous file could not be removed: ${cleanup.error.message}`;
+        }
       }
       setShowGalleryModal(false);
-      setSuccess(editingGallery ? "Gallery photo updated." : "Gallery photo added.");
+      notifyGallery(cleanupWarning ? "error" : "success", cleanupWarning || (editingGallery ? "Gallery media updated." : "Gallery media added."));
       await loadAdminData();
     }
 
     async function deleteGalleryItem(item: GalleryItem) {
       if (!["admin", "staff"].includes(adminProfile?.role || "")) return;
-      if (!window.confirm("Delete Photo?\n\nThis will remove the gallery item from the website.")) return;
+      if (!window.confirm("Delete this gallery media?\n\nThis will remove it from the website.")) return;
       const { error: deleteError } = await supabase.from("gallery").delete().eq("id", item.id);
       if (deleteError) {
-        setError(deleteError.message);
+        notifyGallery("error", deleteError.message);
         return;
       }
-      const storageResult = await supabase.storage.from("gallery-images").remove([item.storage_path]);
-      if (storageResult.error) setError(`Photo removed, but storage cleanup failed: ${storageResult.error.message}`);
-      else setSuccess("Gallery photo deleted.");
+      setGallery((current) => current.filter((entry) => entry.id !== item.id));
+      const storageResult = item.storage_path
+        ? await supabase.storage.from(getGalleryStorageBucket(item)).remove([item.storage_path])
+        : { error: null };
+      if (storageResult.error) {
+        notifyGallery("error", `Gallery item deleted, but its storage file could not be removed: ${storageResult.error.message}`);
+      } else {
+        notifyGallery("success", "Gallery media deleted.");
+      }
       await loadAdminData();
     }
 
     async function toggleGalleryItem(item: GalleryItem) {
       if (!["admin", "staff"].includes(adminProfile?.role || "")) return;
       const { error: updateError } = await supabase.from("gallery").update({ is_active: !item.is_active }).eq("id", item.id);
-      if (updateError) setError(updateError.message);
-      else setGallery((current) => current.map((entry) => entry.id === item.id ? { ...entry, is_active: !item.is_active } : entry));
+      if (updateError) notifyGallery("error", updateError.message);
+      else {
+        setGallery((current) => current.map((entry) => entry.id === item.id ? { ...entry, is_active: !item.is_active } : entry));
+        notifyGallery("success", `Gallery media ${item.is_active ? "deactivated" : "activated"}.`);
+      }
     }
   const customers = profiles.filter(
     (profile) => profile.role === "customer"
@@ -1479,16 +1604,25 @@ export default function AdminPage() {
 
   return (
     <main className="portal-surface min-h-screen bg-[#080808] text-white">
+      {galleryToast && (
+        <div role={galleryToast.type === "error" ? "alert" : "status"} aria-live={galleryToast.type === "error" ? "assertive" : "polite"} className={`fixed right-4 top-20 z-[160] flex max-w-[calc(100vw-2rem)] items-start gap-4 rounded-xl border px-4 py-3 text-sm shadow-2xl ${galleryToast.type === "error" ? "border-red-500/40 bg-[#261012] text-red-200" : "border-[#1688ff]/40 bg-[#101d2b] text-[#b9ddff]"}`}>
+          <span>{galleryToast.message}</span>
+          <button type="button" aria-label="Dismiss gallery notification" onClick={() => setGalleryToast(null)} className="rounded p-1 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1688ff]"><X size={15} /></button>
+        </div>
+      )}
    {/* MOBILE HEADER */}
 <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-white/10 bg-[#090909]/95 px-5 backdrop-blur">
   <div className="flex items-center gap-4">
-    <button
-      onClick={() => setSidebarOpen(true)}
-      className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-[#111] text-gray-400 transition hover:border-red-700 hover:text-red-500"
-      aria-label="Open admin menu"
-    >
-      <Menu size={20} />
-    </button>
+    {!sidebarOpen && (
+      <button
+        type="button"
+        onClick={() => setSidebarOpen(true)}
+        className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-[#111] text-gray-300 transition hover:border-[#1688ff] hover:text-[#63b4ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1688ff]"
+        aria-label="Open admin menu"
+      >
+        <Menu size={20} />
+      </button>
+    )}
 
     <Brand />
   </div>
@@ -1511,13 +1645,15 @@ export default function AdminPage() {
 
      {sidebarOpen && (
   <div
+    aria-hidden="true"
     onClick={() => setSidebarOpen(false)}
-    className="fixed inset-0 z-40 bg-black/70 backdrop-blur-[2px]"
+    className="fixed inset-0 z-40 bg-black/70 backdrop-blur-[2px] lg:hidden"
   />
 )}
       {/* SIDEBAR */}
      <aside
-  className={`fixed left-0 top-0 z-50 flex h-screen w-[280px] flex-col border-r border-white/10 bg-[#0c0c0c] shadow-2xl transition-transform duration-300 lg:translate-x-0 ${
+  aria-label="Admin navigation"
+  className={`admin-sidebar fixed left-0 top-0 z-50 flex h-dvh w-[280px] flex-col overflow-x-hidden overflow-y-auto overscroll-contain border-r border-white/10 bg-[#0c0c0c] shadow-2xl transition-transform duration-300 ${
     sidebarOpen
       ? "translate-x-0"
       : "-translate-x-full"
@@ -1527,10 +1663,12 @@ export default function AdminPage() {
           <Brand />
 
           <button
+            type="button"
             onClick={() =>
               setSidebarOpen(false)
             }
-            className="lg:hidden"
+            aria-label="Close admin menu"
+            className="rounded-lg border border-white/10 p-2 text-gray-300 transition hover:border-[#1688ff] hover:text-[#63b4ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1688ff]"
           >
             <X size={20} />
           </button>
@@ -1546,6 +1684,13 @@ export default function AdminPage() {
             icon={<Images size={18} />}
             label="Gallery"
             onClick={() => changeSection("gallery")}
+          />
+
+          <SidebarButton
+            active={activeSection === "marketing"}
+            icon={<Sparkles size={18} />}
+            label="Reviews & Offers"
+            onClick={() => changeSection("marketing")}
           />
 
           <SidebarButton
@@ -1622,6 +1767,13 @@ export default function AdminPage() {
           />
 
           <SidebarButton
+            active={activeSection === "job-cards"}
+            icon={<ClipboardList size={18} />}
+            label="Job Cards"
+            onClick={() => changeSection("job-cards")}
+          />
+
+          <SidebarButton
             active={activeSection === "messages"}
             icon={<MessageSquare size={18} />}
             label="Messages"
@@ -1677,6 +1829,12 @@ export default function AdminPage() {
                 onClick={() => changeSection("website-settings")}
               />
               <SidebarButton
+                active={activeSection === "business-hours"}
+                icon={<Clock3 size={18} />}
+                label="Business Hours"
+                onClick={() => changeSection("business-hours")}
+              />
+              <SidebarButton
                 active={activeSection === "analytics"}
                 icon={<BarChart3 size={18} />}
                 label="Analytics"
@@ -1721,7 +1879,7 @@ export default function AdminPage() {
       </aside>
 
       {/* MAIN */}
-        <section className="admin-content min-h-screen overflow-x-hidden lg:ml-[280px] lg:w-[calc(100%-280px)]">        <div className="mx-auto max-w-[1500px] p-5 md:p-8">
+        <section className={`admin-content min-h-screen w-full overflow-x-hidden transition-[margin,width] duration-300 ${sidebarOpen ? "lg:ml-[280px] lg:w-[calc(100%-280px)]" : "lg:ml-0 lg:w-full"}`}>        <div className="mx-auto max-w-[1500px] p-5 md:p-8">
             <div className="mx-auto w-full max-w-[1500px] p-5 md:p-8">            <div>
               <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.25em] text-red-500">
                 CK Motors Administration
@@ -1868,6 +2026,9 @@ export default function AdminPage() {
     <ServiceInvoices />
   </div>
 )}
+          {activeSection === "job-cards" && <JobCardManager />}
+          {activeSection === "marketing" && <MarketingAndAuditSection isAdmin={adminProfile?.role === "admin"} />}
+          {activeSection === "business-hours" && adminProfile?.role === "admin" && <BusinessHoursManager />}
 
           {activeSection === "messages" && (
             <MessagesSection
@@ -2236,6 +2397,8 @@ function DashboardSection({
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [notificationSummary, setNotificationSummary] = useState({ unread: 0, today: 0 });
+  const [operationsSummary, setOperationsSummary] = useState<{ activeJobs: number; readyVehicles: number; lowStock: number; upcomingReminders: number; overdueReminders: number } | null>(null);
+  const [operationsError, setOperationsError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -2248,7 +2411,23 @@ function DashboardSection({
       ]);
       if (active) setNotificationSummary({ unread: unreadResult.count || 0, today: todayResult.count || 0 });
     }
+    async function loadOperationsSummary() {
+      const { data, error: summaryError } = await supabase.rpc("get_admin_workshop_summary");
+      if (!active) return;
+      if (summaryError || !data?.[0]) {
+        setOperationsError(`Workshop overview could not be loaded: ${summaryError?.message || "No summary data returned."}`);
+        return;
+      }
+      setOperationsSummary({
+        activeJobs: Number(data[0].active_jobs),
+        readyVehicles: Number(data[0].ready_vehicles),
+        lowStock: Number(data[0].low_stock_items),
+        upcomingReminders: Number(data[0].upcoming_reminders),
+        overdueReminders: Number(data[0].overdue_reminders),
+      });
+    }
     void loadNotificationSummary();
+    void loadOperationsSummary();
     return () => { active = false; };
   }, [supabase]);
 
@@ -2263,6 +2442,7 @@ function DashboardSection({
 
   return (
     <>
+      {operationsError && <p role="alert" className="mb-4 rounded-lg border border-amber-700/50 bg-amber-950/20 px-4 py-3 text-xs text-amber-200">{operationsError}</p>}
       <div className="mb-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-7">
         <StatCard
           icon={<Users />}
@@ -2299,6 +2479,11 @@ function DashboardSection({
         />
         <StatCard icon={<Bell />} value={notificationSummary.unread} label="Unread Notifications" />
         <StatCard icon={<CalendarDays />} value={notificationSummary.today} label="New Bookings Today" />
+        <StatCard icon={<ClipboardList />} value={operationsSummary?.activeJobs ?? "—"} label="Active Jobs" />
+        <StatCard icon={<Car />} value={operationsSummary?.readyVehicles ?? "—"} label="Ready Vehicles" />
+        <StatCard icon={<Package />} value={operationsSummary?.lowStock ?? "—"} label="Low Stock Items" />
+        <StatCard icon={<CalendarDays />} value={operationsSummary?.upcomingReminders ?? "—"} label="Due Soon" />
+        <StatCard icon={<CalendarDays />} value={operationsSummary?.overdueReminders ?? "—"} label="Overdue Services" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
@@ -3814,14 +3999,121 @@ function ServicesSection({
 }
 
 function GallerySection({ gallery, onAdd, onEdit, onToggle, onDelete }: { gallery: GalleryItem[]; onAdd: () => void; onEdit: (item: GalleryItem) => void; onToggle: (item: GalleryItem) => void; onDelete: (item: GalleryItem) => void }) {
-  return <Panel title="Gallery Management"><div className="mb-5 flex items-center justify-between gap-4"><p className="text-xs text-gray-500">Manage workshop photos displayed on the CK Motors website.</p><button type="button" onClick={onAdd} className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-3 text-xs font-bold"><Plus size={16} /> Add Photo</button></div>{gallery.length === 0 ? <Empty text="No gallery photos yet." /> : <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{gallery.map((item) => <article key={item.id} className="overflow-hidden rounded-2xl border border-white/10 bg-black/20"><img src={item.image_url} alt={item.title || "Gallery photo"} className="aspect-[4/3] w-full object-cover" /><div className="p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{item.title || "Untitled photo"}</h3><p className="mt-1 text-xs text-gray-500">{item.caption || "No caption"}</p></div><StatusPill active={item.is_active} text={item.is_active ? "Active" : "Inactive"} /></div><p className="mt-3 text-[10px] text-gray-600">Order {item.display_order} · {new Date(item.created_at).toLocaleDateString()}</p><div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => onEdit(item)} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold text-gray-400">Edit</button><button type="button" onClick={() => onToggle(item)} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold text-gray-400">{item.is_active ? "Deactivate" : "Activate"}</button><button type="button" onClick={() => onDelete(item)} className="rounded-lg border border-red-900/50 px-3 py-2 text-[10px] font-bold text-red-500">Delete</button></div></div></article>)}</div>}</Panel>;
+  return (
+    <Panel title="Gallery Management">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+        <p className="text-xs text-gray-500">Manage workshop photos and videos displayed on the CK Motors website.</p>
+        <button type="button" onClick={onAdd} className="flex items-center gap-2 rounded-lg bg-[#087fe8] px-5 py-3 text-xs font-bold text-white transition hover:bg-[#1688ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#63b4ff]">
+          <Plus size={16} /> ADD MEDIA
+        </button>
+      </div>
+      {gallery.length === 0 ? <Empty text="No gallery media yet." /> : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {gallery.map((item) => {
+            const isVideo = item.media_type === "video" && Boolean(item.video_url);
+            return (
+              <article key={item.id} className="overflow-hidden rounded-2xl border border-[#263144] bg-[#10151e] shadow-lg shadow-black/20">
+                <div className="relative aspect-[4/3] overflow-hidden bg-black">
+                  {isVideo ? (
+                    <video src={item.video_url || undefined} poster={item.thumbnail_url || undefined} controls playsInline preload="metadata" className="h-full w-full object-cover" />
+                  ) : item.image_url ? (
+                    <img src={item.image_url} alt={item.title || "Gallery image"} loading="lazy" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-sm text-gray-500">Media preview unavailable</div>
+                  )}
+                  <span className="absolute left-3 top-3 rounded-md border border-white/15 bg-black/80 px-2 py-1 text-[10px] font-bold tracking-wider text-[#63b4ff]">{isVideo ? "VIDEO" : "IMAGE"}</span>
+                </div>
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div><h3 className="font-bold">{item.title || `Untitled ${isVideo ? "video" : "image"}`}</h3><p className="mt-1 text-xs text-gray-500">{item.caption || "No caption"}</p></div>
+                    <StatusPill active={item.is_active} text={item.is_active ? "Active" : "Inactive"} />
+                  </div>
+                  <p className="mt-3 text-[10px] text-gray-600">Order {item.display_order} · {new Date(item.created_at).toLocaleDateString()}</p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => onEdit(item)} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold text-gray-300 hover:border-[#1688ff] hover:text-white">Edit</button>
+                    <button type="button" onClick={() => onToggle(item)} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold text-gray-300">{item.is_active ? "Deactivate" : "Activate"}</button>
+                    <button type="button" onClick={() => onDelete(item)} className="rounded-lg border border-red-900/50 px-3 py-2 text-[10px] font-bold text-red-400">Delete</button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </Panel>
+  );
 }
 
 function GalleryModal({ item, onClose, onSubmit }: { item: GalleryItem | null; onClose: () => void; onSubmit: (formData: FormData) => Promise<void> }) {
-  const [preview, setPreview] = useState(item?.image_url || "");
+  const initialMediaType = item?.media_type || "image";
+  const [mediaType, setMediaType] = useState<"image" | "video">(initialMediaType);
+  const [preview, setPreview] = useState(initialMediaType === "video" ? item?.video_url || "" : item?.image_url || "");
   const [saving, setSaving] = useState(false);
-  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setSaving(true); await onSubmit(new FormData(event.currentTarget)); setSaving(false); }
-  return <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/80 p-4"><div className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#111] p-6"><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-black">{item ? "Edit Photo" : "Add Photo"}</h2><button type="button" onClick={onClose} className="rounded-lg border border-white/10 p-2"><X size={18} /></button></div><form onSubmit={submit} className="space-y-4"><label className="block text-xs font-bold text-gray-400">Photo {item ? "(optional replacement)" : "*"}<input name="file" required={!item} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) setPreview(URL.createObjectURL(file)); }} className="mt-2 block w-full text-xs" /></label>{preview && <img src={preview} alt="Selected preview" className="max-h-56 w-full rounded-xl object-cover" />}<label className="block text-xs font-bold text-gray-400">Title<input name="title" defaultValue={item?.title || ""} className="mt-2 w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm" /></label><label className="block text-xs font-bold text-gray-400">Caption<textarea name="caption" defaultValue={item?.caption || ""} rows={3} className="mt-2 w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm" /></label><div className="grid gap-4 sm:grid-cols-2"><label className="block text-xs font-bold text-gray-400">Display Order<input name="display_order" type="number" defaultValue={item?.display_order || 0} className="mt-2 w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm" /></label><label className="flex items-center gap-2 pt-6 text-xs font-bold text-gray-400"><input name="is_active" type="checkbox" defaultChecked={item?.is_active ?? true} /> Active</label></div><div className="flex justify-end gap-3 border-t border-white/10 pt-4"><button type="button" onClick={onClose} className="rounded-lg border border-white/10 px-4 py-3 text-xs font-bold">Cancel</button><button disabled={saving} className="rounded-lg bg-red-600 px-5 py-3 text-xs font-bold disabled:opacity-50">{saving ? "Saving..." : "Save Photo"}</button></div></form></div></div>;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (preview.startsWith("blob:")) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    try {
+      await onSubmit(new FormData(event.currentTarget));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function changeMediaType(nextType: "image" | "video") {
+    setMediaType(nextType);
+    setPreview("");
+  }
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/80 p-4">
+      <div role="dialog" aria-modal="true" aria-labelledby="gallery-modal-title" className="w-full max-w-xl rounded-2xl border border-white/10 bg-[#11151c] p-6 shadow-2xl shadow-black/60">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 id="gallery-modal-title" className="text-xl font-black">{item ? "Edit Media" : "Add Media"}</h2>
+          <button type="button" onClick={onClose} aria-label="Close media editor" className="rounded-lg border border-white/10 p-2 transition hover:text-[#63b4ff] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1688ff]"><X size={18} /></button>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          <label className="block text-xs font-bold text-gray-400">Media Type
+            <select name="media_type" value={mediaType} onChange={(event) => {
+              changeMediaType(event.target.value === "video" ? "video" : "image");
+              if (fileInputRef.current) fileInputRef.current.value = "";
+            }} className="mt-2 w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#1688ff]">
+              <option value="image">Image</option><option value="video">Video</option>
+            </select>
+          </label>
+          <label className="block text-xs font-bold text-gray-400">{mediaType === "image" ? "Image" : "Video"} {item ? "(optional replacement)" : "*"}
+            <input ref={fileInputRef} name="file" required={!item} type="file" accept={mediaType === "image" ? "image/jpeg,image/png,image/webp" : "video/mp4,video/webm"} onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) setPreview(URL.createObjectURL(file));
+            }} className="mt-2 block w-full text-xs file:mr-3 file:rounded-md file:border-0 file:bg-[#17263a] file:px-3 file:py-2 file:font-bold file:text-[#8bc9ff]" />
+            <span className="mt-1 block text-[10px] text-gray-600">{mediaType === "image" ? "JPG, JPEG, PNG or WEBP · maximum 5 MB" : "MP4 or WEBM · maximum 100 MB"}</span>
+          </label>
+          {preview && (mediaType === "video"
+            ? <video src={preview} poster={item?.thumbnail_url || undefined} controls playsInline preload="metadata" className="max-h-56 w-full rounded-xl bg-black object-contain" />
+            : <img src={preview} alt="Selected image preview" className="max-h-56 w-full rounded-xl object-cover" />)}
+          {saving && <p role="status" className="rounded-lg border border-[#1688ff]/20 bg-[#1688ff]/10 px-3 py-2 text-xs text-[#8bc9ff]">{item ? "Saving media..." : "Uploading media... Please wait."}</p>}
+          <label className="block text-xs font-bold text-gray-400">Title<input name="title" defaultValue={item?.title || ""} className="mt-2 w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm" /></label>
+          <label className="block text-xs font-bold text-gray-400">Caption<textarea name="caption" defaultValue={item?.caption || ""} rows={3} className="mt-2 w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm" /></label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-xs font-bold text-gray-400">Display Order<input name="display_order" type="number" defaultValue={item?.display_order || 0} className="mt-2 w-full rounded-lg border border-white/10 bg-[#080808] px-4 py-3 text-sm" /></label>
+            <label className="flex items-center gap-2 pt-6 text-xs font-bold text-gray-400"><input name="is_active" type="checkbox" defaultChecked={item?.is_active ?? true} /> Active</label>
+          </div>
+          <div className="flex justify-end gap-3 border-t border-white/10 pt-4">
+            <button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-white/10 px-4 py-3 text-xs font-bold disabled:opacity-50">Cancel</button>
+            <button disabled={saving} className="rounded-lg bg-[#087fe8] px-5 py-3 text-xs font-bold text-white disabled:opacity-50">{saving ? "Uploading..." : item ? "Save Media" : "Add Media"}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 /* ============================================================
@@ -4155,6 +4447,15 @@ function sectionTitle(
 
     case "records":
       return "Service Records";
+
+    case "job-cards":
+      return "Job Cards";
+
+    case "marketing":
+      return "Reviews & Offers";
+
+    case "business-hours":
+      return "Business Hours";
 
     case "messages":
       return "Customer Messages";
