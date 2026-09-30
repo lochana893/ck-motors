@@ -2,25 +2,19 @@
 /* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { createElement, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
-  BatteryCharging,
   CheckCircle2,
   ChevronRight,
-  CircleGauge,
   Clock3,
-  Disc3,
   Mail,
   MapPin,
   MessageCircle,
   Menu,
   Phone,
   Play,
-  ShieldCheck,
-  Sparkles,
-  Wrench,
   X,
 } from "lucide-react";
 import CKLogo from "@/components/CKLogo";
@@ -28,6 +22,7 @@ import SehasCredit from "@/components/SehasCredit";
 import PublicVisitCounter from "@/components/PublicVisitCounter";
 import { createClient } from "@/lib/supabase/client";
 import { loadSiteSettings, phoneUrl, validEmail, whatsappUrl, type SiteSettings } from "@/lib/site-settings";
+import { resolveServiceIcon } from "@/lib/service-icons";
 
 type PublicService = {
   id: string;
@@ -36,6 +31,7 @@ type PublicService = {
   description: string | null;
   price_from: number | null;
   estimated_duration_minutes: number | null;
+  icon_name: string | null;
 };
 
 type GalleryItem = {
@@ -58,16 +54,6 @@ type Promotion = {
   cta_url: string | null;
 };
 type PublicReview = { id: string; customer_name: string; rating: number; review: string; created_at: string };
-
-const iconMap = {
-  wrench: Wrench,
-  diagnostics: CircleGauge,
-  safety: ShieldCheck,
-  electrical: BatteryCharging,
-  detailing: Sparkles,
-  comfort: ShieldCheck,
-  brakes: Disc3,
-} as const;
 
 const benefits = [
   ["01", "Experienced technicians", "Skilled hands, careful inspections and clear advice."],
@@ -96,7 +82,7 @@ export default function Home() {
       const [{ data, error }, galleryResult, promotionResult, reviewResult, siteSettings] = await Promise.all([
         supabase
         .from("services")
-        .select("id, name, category, description, price_from, estimated_duration_minutes")
+        .select("id, name, category, description, price_from, estimated_duration_minutes, icon_name")
         .eq("active", true)
         .order("name", { ascending: true }),
         supabase
@@ -249,8 +235,7 @@ export default function Home() {
         ) : (
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {services.map((service) => {
-              const Icon = iconMap[(service.category || "").toLowerCase() as keyof typeof iconMap] || Wrench;
-              return <article key={service.id} className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-red-200 hover:shadow-md"><div className="flex items-start justify-between"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-600"><Icon size={21} /></div><span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500">{service.category || "Automotive"}</span></div><h3 className="mt-5 text-lg font-bold">{service.name}</h3><p className="mt-2 min-h-14 text-sm leading-6 text-slate-500">{service.description || "Professional vehicle care from CK Motors."}</p><div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4"><span className="text-sm font-bold text-red-600">{service.price_from !== null ? `From LKR ${Number(service.price_from).toLocaleString()}` : "Price on request"}</span><Link href={loggedIn ? "/dashboard?section=bookings" : "/register"} className="text-sm font-bold text-slate-700 transition group-hover:text-red-600">Book now <span aria-hidden>→</span></Link></div></article>;
+              return <article key={service.id} className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-red-200 hover:shadow-md"><div className="flex items-start justify-between"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-600">{createElement(resolveServiceIcon(service.icon_name), { size: 21 })}</div><span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500">{service.category || "Automotive"}</span></div><h3 className="mt-5 text-lg font-bold">{service.name}</h3><p className="mt-2 min-h-14 text-sm leading-6 text-slate-500">{service.description || "Professional vehicle care from CK Motors."}</p><div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4"><span className="text-sm font-bold text-red-600">{service.price_from !== null ? `From LKR ${Number(service.price_from).toLocaleString()}` : "Price on request"}</span><Link href={loggedIn ? "/dashboard?section=bookings" : "/register"} className="text-sm font-bold text-slate-700 transition group-hover:text-red-600">Book now <span aria-hidden>→</span></Link></div></article>;
             })}
           </div>
         )}

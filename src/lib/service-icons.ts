@@ -1,0 +1,145 @@
+import {
+  Activity, AirVent, ArrowUpDown, BadgeCheck, Battery, BatteryCharging,
+  BellRing, Bolt, Brush, BrushCleaning, Cable, Car, CarFront, CarTaxiFront,
+  Circle, CircleDot, CircleGauge, CircleStop, ClipboardCheck, ClipboardList,
+  Cloud, Cog, Construction, Cpu, Disc, Disc3, Droplet, Droplets, Eye, Factory,
+  Fan, FileSearch, Filter, Flame, Flashlight, FlaskConical, Fuel, Gauge,
+  GitBranch, GlassWater, Hammer, Lightbulb, Laptop, ListChecks, Lock, MapPin,
+  Monitor, Move, MoveHorizontal, MoveVertical, Navigation, OctagonAlert,
+  Package, PackageOpen, Paintbrush, Palette, Phone, PlugZap, Power, Radio,
+  RefreshCcw, RefreshCw, RotateCcw, ScanLine, ScanSearch, Search, SearchCheck,
+  Settings, Shield, ShieldCheck, Shirt, Signal, Siren, SlidersHorizontal,
+  Snowflake, Sparkles, SprayCan, Stethoscope, Sun, Thermometer, ThermometerSun,
+  Timer, TimerReset, ToolCase, TriangleAlert, Truck, Waves, Wind, Wifi, Wrench,
+  Zap, type LucideIcon,
+} from "lucide-react";
+
+export type ServiceIconCategory =
+  | "Engine" | "Electrical" | "Brakes" | "Diagnostics" | "Cleaning"
+  | "Tyres" | "Oil" | "AC" | "Safety" | "Other";
+
+export type ServiceIconOption = {
+  name: string;
+  category: ServiceIconCategory;
+  Icon: LucideIcon;
+};
+
+export const serviceIconCategories = [
+  "All", "Engine", "Electrical", "Brakes", "Diagnostics", "Cleaning",
+  "Tyres", "Oil", "AC", "Safety", "Other",
+] as const;
+
+export const serviceIconOptions: ServiceIconOption[] = [
+  { name: "Wrench", category: "Engine", Icon: Wrench },
+  { name: "Settings", category: "Engine", Icon: Settings },
+  { name: "Cog", category: "Engine", Icon: Cog },
+  { name: "Gauge", category: "Engine", Icon: Gauge },
+  { name: "Activity", category: "Engine", Icon: Activity },
+  { name: "Fan", category: "Engine", Icon: Fan },
+  { name: "CircleGauge", category: "Engine", Icon: CircleGauge },
+  { name: "TimerReset", category: "Engine", Icon: TimerReset },
+  { name: "SlidersHorizontal", category: "Engine", Icon: SlidersHorizontal },
+  { name: "Hammer", category: "Engine", Icon: Hammer },
+  { name: "Bolt", category: "Engine", Icon: Bolt },
+  { name: "PackageOpen", category: "Engine", Icon: PackageOpen },
+  { name: "Timer", category: "Engine", Icon: Timer },
+  { name: "ToolCase", category: "Engine", Icon: ToolCase },
+  { name: "Construction", category: "Engine", Icon: Construction },
+  { name: "Zap", category: "Electrical", Icon: Zap },
+  { name: "BatteryCharging", category: "Electrical", Icon: BatteryCharging },
+  { name: "Battery", category: "Electrical", Icon: Battery },
+  { name: "Cable", category: "Electrical", Icon: Cable },
+  { name: "PlugZap", category: "Electrical", Icon: PlugZap },
+  { name: "Power", category: "Electrical", Icon: Power },
+  { name: "Cpu", category: "Electrical", Icon: Cpu },
+  { name: "Radio", category: "Electrical", Icon: Radio },
+  { name: "Lightbulb", category: "Electrical", Icon: Lightbulb },
+  { name: "Flashlight", category: "Electrical", Icon: Flashlight },
+  { name: "Signal", category: "Electrical", Icon: Signal },
+  { name: "Wifi", category: "Electrical", Icon: Wifi },
+  { name: "Disc", category: "Brakes", Icon: Disc },
+  { name: "Disc3", category: "Brakes", Icon: Disc3 },
+  { name: "CircleStop", category: "Brakes", Icon: CircleStop },
+  { name: "OctagonAlert", category: "Brakes", Icon: OctagonAlert },
+  { name: "TriangleAlert", category: "Brakes", Icon: TriangleAlert },
+  { name: "Shield", category: "Safety", Icon: Shield },
+  { name: "ShieldCheck", category: "Safety", Icon: ShieldCheck },
+  { name: "BadgeCheck", category: "Safety", Icon: BadgeCheck },
+  { name: "Lock", category: "Safety", Icon: Lock },
+  { name: "Siren", category: "Safety", Icon: Siren },
+  { name: "BellRing", category: "Safety", Icon: BellRing },
+  { name: "ScanLine", category: "Diagnostics", Icon: ScanLine },
+  { name: "ScanSearch", category: "Diagnostics", Icon: ScanSearch },
+  { name: "Search", category: "Diagnostics", Icon: Search },
+  { name: "Monitor", category: "Diagnostics", Icon: Monitor },
+  { name: "Laptop", category: "Diagnostics", Icon: Laptop },
+  { name: "Stethoscope", category: "Diagnostics", Icon: Stethoscope },
+  { name: "ClipboardCheck", category: "Diagnostics", Icon: ClipboardCheck },
+  { name: "FileSearch", category: "Diagnostics", Icon: FileSearch },
+  { name: "SearchCheck", category: "Diagnostics", Icon: SearchCheck },
+  { name: "ClipboardList", category: "Diagnostics", Icon: ClipboardList },
+  { name: "ListChecks", category: "Diagnostics", Icon: ListChecks },
+  { name: "Filter", category: "Diagnostics", Icon: Filter },
+  { name: "Droplet", category: "Oil", Icon: Droplet },
+  { name: "Fuel", category: "Oil", Icon: Fuel },
+  { name: "FlaskConical", category: "Oil", Icon: FlaskConical },
+  { name: "GlassWater", category: "Oil", Icon: GlassWater },
+  { name: "CircleDot", category: "Tyres", Icon: CircleDot },
+  { name: "Circle", category: "Tyres", Icon: Circle },
+  { name: "RotateCcw", category: "Tyres", Icon: RotateCcw },
+  { name: "RefreshCcw", category: "Tyres", Icon: RefreshCcw },
+  { name: "Move", category: "Tyres", Icon: Move },
+  { name: "CarFront", category: "Tyres", Icon: CarFront },
+  { name: "Snowflake", category: "AC", Icon: Snowflake },
+  { name: "Wind", category: "AC", Icon: Wind },
+  { name: "Thermometer", category: "AC", Icon: Thermometer },
+  { name: "AirVent", category: "AC", Icon: AirVent },
+  { name: "Cloud", category: "AC", Icon: Cloud },
+  { name: "Droplets", category: "AC", Icon: Droplets },
+  { name: "Sparkles", category: "Cleaning", Icon: Sparkles },
+  { name: "SprayCan", category: "Cleaning", Icon: SprayCan },
+  { name: "BrushCleaning", category: "Cleaning", Icon: BrushCleaning },
+  { name: "Shirt", category: "Cleaning", Icon: Shirt },
+  { name: "Waves", category: "Cleaning", Icon: Waves },
+  { name: "Brush", category: "Cleaning", Icon: Brush },
+  { name: "Paintbrush", category: "Cleaning", Icon: Paintbrush },
+  { name: "Palette", category: "Cleaning", Icon: Palette },
+  { name: "Car", category: "Safety", Icon: Car },
+  { name: "CarTaxiFront", category: "Safety", Icon: CarTaxiFront },
+  { name: "Eye", category: "Safety", Icon: Eye },
+  { name: "MoveVertical", category: "Other", Icon: MoveVertical },
+  { name: "MoveHorizontal", category: "Other", Icon: MoveHorizontal },
+  { name: "ArrowUpDown", category: "Other", Icon: ArrowUpDown },
+  { name: "RefreshCw", category: "Other", Icon: RefreshCw },
+  { name: "GitBranch", category: "Other", Icon: GitBranch },
+  { name: "Flame", category: "Other", Icon: Flame },
+  { name: "Factory", category: "Other", Icon: Factory },
+  { name: "Sun", category: "Other", Icon: Sun },
+  { name: "Package", category: "Other", Icon: Package },
+  { name: "Truck", category: "Other", Icon: Truck },
+  { name: "MapPin", category: "Other", Icon: MapPin },
+  { name: "Navigation", category: "Other", Icon: Navigation },
+  { name: "Phone", category: "Other", Icon: Phone },
+  { name: "ThermometerSun", category: "Other", Icon: ThermometerSun },
+];
+
+const iconByName = new Map(serviceIconOptions.map(({ name, Icon }) => [name.toLowerCase(), Icon]));
+
+export function resolveServiceIcon(iconName: string | null | undefined): LucideIcon {
+  return iconByName.get(iconName?.toLowerCase() || "") || Wrench;
+}
+
+export function suggestServiceIcon(serviceName: string): string | null {
+  const name = serviceName.trim().toLowerCase();
+  if (!name) return null;
+  const rules: Array<[RegExp, string]> = [
+    [/electrical/, "Zap"], [/battery/, "BatteryCharging"], [/brake/, "ShieldCheck"],
+    [/engine|repair/, "Wrench"], [/scan/, "ScanSearch"], [/diagnostic/, "Activity"],
+    [/oil/, "Droplet"], [/filter/, "Filter"], [/wash|clean|detailing/, "Sparkles"],
+    [/air condition|\bac\b/, "Snowflake"], [/tyre|tire/, "CircleDot"], [/wheel/, "Circle"],
+    [/suspension/, "SlidersHorizontal"], [/alignment/, "MoveHorizontal"], [/fuel/, "Fuel"],
+    [/light/, "Lightbulb"], [/tune/, "Gauge"], [/inspection/, "ClipboardCheck"],
+    [/checkup/, "ListChecks"],
+  ];
+  return rules.find(([pattern]) => pattern.test(name))?.[1] || null;
+}
