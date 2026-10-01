@@ -131,6 +131,7 @@ export default function DashboardPage() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileError, setProfileError] = useState("");
   const [highlightBookingId, setHighlightBookingId] = useState<string | null>(null);
+  const [preselectServiceId, setPreselectServiceId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -152,6 +153,8 @@ export default function DashboardPage() {
       if (requestedSection && ["dashboard", "vehicles", "bookings", "history", "notifications", "messages", "profile"].includes(requestedSection)) {
         setActiveSection(requestedSection as Section);
       }
+      const requestedServiceId = new URLSearchParams(window.location.search).get("serviceId");
+      if (requestedServiceId) setPreselectServiceId(requestedServiceId);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -580,6 +583,7 @@ export default function DashboardPage() {
               onAddVehicle={() => openSection("vehicles")}
               highlightBookingId={highlightBookingId}
               onHighlightHandled={() => setHighlightBookingId(null)}
+              preselectServiceId={preselectServiceId}
             />
           )}
 

@@ -19,6 +19,7 @@ import {
   Menu,
   MessageSquare,
   Paperclip,
+  Phone,
   Plus,
   Search,
   Trash2,
@@ -57,6 +58,7 @@ import VehicleSettingsSection from "@/components/admin/VehicleSettingsSection";
 import LoginActivitySection from "@/components/admin/LoginActivitySection";
 import AnalyticsSection from "@/components/admin/AnalyticsSection";
 import VisitorAnalyticsSection from "@/components/admin/VisitorAnalyticsSection";
+import CallbackRequestsSection from "@/components/admin/CallbackRequestsSection";
 import AdminNotificationBell from "@/components/admin/AdminNotificationBell";
 import ReportCenter from "@/components/admin/reports/ReportCenter";
 import ServiceIconPicker from "@/components/admin/ServiceIconPicker";
@@ -95,6 +97,7 @@ type Section =
   | "login-activity"
   | "analytics"
   | "visitor-analytics"
+  | "callback-requests"
   | "reports";
 
 type Profile = {
@@ -186,6 +189,8 @@ type Service = {
   price_from: number | null;
   estimated_duration_minutes: number | null;
   icon_name: string | null;
+  is_popular: boolean;
+  is_recommended: boolean;
   active: boolean;
   created_at: string;
 };
@@ -259,6 +264,8 @@ type ServiceForm = {
   price_from: string;
   estimated_duration_minutes: string;
   icon_name: string | null;
+  is_popular: boolean;
+  is_recommended: boolean;
   active: boolean;
 };
 
@@ -270,6 +277,8 @@ const emptyServiceForm: ServiceForm = {
   price_from: "",
   estimated_duration_minutes: "",
   icon_name: "Wrench",
+  is_popular: false,
+  is_recommended: false,
   active: true,
 };
 
@@ -292,7 +301,7 @@ export default function AdminPage() {
   const [activeSection, setActiveSection] = useState<Section>(() => {
     if (typeof window === "undefined") return "dashboard";
     const requestedSection = new URLSearchParams(window.location.search).get("section");
-    const validSections: Section[] = ["dashboard", "bookings", "customers", "vehicles", "services", "records", "job-cards", "marketing", "business-hours", "messages", "gallery", "website-settings", "users", "vehicle-settings", "inventory", "suppliers", "technicians", "analytics", "login-activity", "visitor-analytics", "reports"];
+    const validSections: Section[] = ["dashboard", "bookings", "customers", "vehicles", "services", "records", "job-cards", "marketing", "business-hours", "messages", "gallery", "website-settings", "users", "vehicle-settings", "inventory", "suppliers", "technicians", "analytics", "login-activity", "visitor-analytics", "callback-requests", "reports"];
     return validSections.includes(requestedSection as Section) ? requestedSection as Section : "dashboard";
   });
 
@@ -315,6 +324,7 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [galleryToast, setGalleryToast] = useState<{ type: "error" | "success"; message: string } | null>(null);
+  const [callbackNewCount, setCallbackNewCount] = useState(0);
 
   const [updatingBooking, setUpdatingBooking] =
     useState<string | null>(null);
@@ -495,6 +505,8 @@ export default function AdminPage() {
           price_from,
           estimated_duration_minutes,
           icon_name,
+          is_popular,
+          is_recommended,
           active,
           created_at
           `
@@ -592,6 +604,20 @@ export default function AdminPage() {
 
     return () => window.clearTimeout(timer);
   }, [loadAdminData]);
+
+  useEffect(() => {
+    let active = true;
+    void supabase
+      .from("callback_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "new")
+      .then(({ count }) => {
+        if (active) setCallbackNewCount(count || 0);
+      });
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
 
   useEffect(() => {
     const desktopQuery = window.matchMedia("(min-width: 1024px)");
@@ -1237,6 +1263,8 @@ export default function AdminPage() {
         service.estimated_duration_minutes?.toString() ||
         "",
       icon_name: service.icon_name || "Wrench",
+      is_popular: service.is_popular,
+      is_recommended: service.is_recommended,
       active: service.active,
     });
 
@@ -1283,6 +1311,8 @@ export default function AdminPage() {
             )
           : null,
       icon_name: serviceForm.icon_name || null,
+      is_popular: serviceForm.is_popular,
+      is_recommended: serviceForm.is_recommended,
       active: serviceForm.active,
     };
 
@@ -1862,6 +1892,14 @@ export default function AdminPage() {
           />
 
           <SidebarButton
+            active={activeSection === "callback-requests"}
+            icon={<Phone size={18} />}
+            label="Callback Requests"
+            badge={callbackNewCount || undefined}
+            onClick={() => changeSection("callback-requests")}
+          />
+
+          <SidebarButton
             active={activeSection === "suppliers"}
             icon={<Factory size={18} />}
             label="Suppliers"
@@ -2148,6 +2186,7 @@ export default function AdminPage() {
             />
           )}
           {activeSection === "inventory" && <InventoryManager />}
+          {activeSection === "callback-requests" && <CallbackRequestsSection onCountChange={setCallbackNewCount} />}
           {activeSection === "suppliers" && <SuppliersManager />}
           {activeSection === "technicians" && <TechniciansManager />}
           {activeSection === "reports" && (
@@ -2408,6 +2447,35 @@ export default function AdminPage() {
                     })
                   }
                 />
+              </div>
+
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-3 text-xs font-semibold text-gray-400">
+                  <input
+                    type="checkbox"
+                    checked={serviceForm.is_popular}
+                    onChange={(event) =>
+                      setServiceForm({
+                        ...serviceForm,
+                        is_popular: event.target.checked,
+                      })
+                    }
+                  />
+                  Mark as Popular
+                </label>
+                <label className="flex items-center gap-3 text-xs font-semibold text-gray-400">
+                  <input
+                    type="checkbox"
+                    checked={serviceForm.is_recommended}
+                    onChange={(event) =>
+                      setServiceForm({
+                        ...serviceForm,
+                        is_recommended: event.target.checked,
+                      })
+                    }
+                  />
+                  Mark as Recommended
+                </label>
               </div>
 
               <label className="flex items-center gap-3 text-xs font-semibold text-gray-400">
@@ -4028,9 +4096,11 @@ function ServicesSection({
               {service.name}
             </h3>
 
-            <p className="mt-1 text-xs font-semibold text-red-500">
+            <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-red-500">
               {service.category ||
                 "General"}
+              {service.is_popular && <span className="rounded-full border border-amber-700/40 bg-amber-950/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-amber-400">Popular</span>}
+              {service.is_recommended && <span className="rounded-full border border-sky-700/40 bg-sky-950/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-sky-400">Recommended</span>}
             </p>
 
             <p className="mt-3 min-h-10 text-xs leading-5 text-gray-600">
@@ -4643,6 +4713,8 @@ function sectionTitle(
       return "Website Analytics";
     case "visitor-analytics":
       return "Visitor Analytics";
+    case "callback-requests":
+      return "Callback Requests";
     case "login-activity":
       return "Login Activity";
     case "reports":

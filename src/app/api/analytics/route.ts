@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const admin = getSupabaseAdminClient();
     if (!admin) return NextResponse.json({ ok: false }, { status: 503 });
 
-    let body: { pagePath?: unknown; visitorId?: unknown; sessionId?: unknown; referrer?: unknown };
+    let body: { pagePath?: unknown; visitorId?: unknown; sessionId?: unknown; referrer?: unknown; eventType?: unknown; serviceId?: unknown; serviceName?: unknown };
     try {
       body = (await request.json()) as typeof body;
     } catch {
@@ -47,6 +47,11 @@ export async function POST(request: NextRequest) {
     const pagePath = typeof body.pagePath === "string" ? body.pagePath : "";
     const visitorId = typeof body.visitorId === "string" ? body.visitorId : "";
     const sessionId = typeof body.sessionId === "string" ? body.sessionId.slice(0, 128) : "";
+    const eventType = typeof body.eventType === "string" && body.eventType.trim()
+      ? body.eventType.trim().slice(0, 64)
+      : "page_view";
+    const serviceId = typeof body.serviceId === "string" && body.serviceId.length <= 64 ? body.serviceId : null;
+    const serviceName = typeof body.serviceName === "string" ? body.serviceName.slice(0, 200) : null;
     if (!pagePath.startsWith("/") || pagePath.length > 512 || !visitorId || visitorId.length > 128) {
       return NextResponse.json({ ok: false }, { status: 400 });
     }
@@ -64,7 +69,7 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
 
     const { error } = await admin.from("site_analytics_events").insert({
-      event_type: "page_view",
+      event_type: eventType,
       page_path: pagePath,
       visitor_id: visitorId,
       session_id: sessionId || null,
@@ -77,11 +82,13 @@ export async function POST(request: NextRequest) {
       city,
       ip_address: ipAddress,
       user_id: userId,
+      service_id: serviceId,
+      service_name: serviceName,
     });
 
     if (error && process.env.NODE_ENV !== "production") console.warn("Analytics insert failed:", error.message);
 
-    if (sessionId) {
+    if (sessionId && eventType === "page_view") {
       try {
         const { data: existing } = await admin
           .from("visitor_sessions")

@@ -24,6 +24,9 @@ import { createClient } from "@/lib/supabase/client";
 import { loadSiteSettings, phoneUrl, validEmail, whatsappUrl, type SiteSettings } from "@/lib/site-settings";
 import { resolveServiceIcon } from "@/lib/service-icons";
 import { formatMediaCaption } from "@/lib/media-caption";
+import { type BusinessHoursRow } from "@/lib/business-hours";
+import { trackPublicEvent } from "@/lib/analytics-events";
+import ServiceContactModal from "@/components/services/ServiceContactModal";
 
 type PublicService = {
   id: string;
@@ -33,6 +36,8 @@ type PublicService = {
   price_from: number | null;
   estimated_duration_minutes: number | null;
   icon_name: string | null;
+  is_popular: boolean;
+  is_recommended: boolean;
 };
 
 type GalleryItem = {
@@ -62,6 +67,13 @@ const benefits = [
   ["03", "Transparent pricing", "Know what your vehicle needs before work begins."],
 ];
 
+function formatSlotTime(time: string) {
+  const [hoursRaw, minutesRaw] = time.split(":").map(Number);
+  const period = hoursRaw >= 12 ? "PM" : "AM";
+  const hour = hoursRaw % 12 === 0 ? 12 : hoursRaw % 12;
+  return `${hour}:${String(minutesRaw || 0).padStart(2, "0")} ${period}`;
+}
+
 export default function Home() {
   const supabase = useMemo(() => createClient(), []);
   const [services, setServices] = useState<PublicService[]>([]);
@@ -71,7 +83,11 @@ export default function Home() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [reviews, setReviews] = useState<PublicReview[]>([]);
   const [selectedGallery, setSelectedGallery] = useState<GalleryItem | null>(null);
+  const [contactService, setContactService] = useState<PublicService | null>(null);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [businessHours, setBusinessHours] = useState<BusinessHoursRow[]>([]);
+  const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [nextAvailableLabel, setNextAvailableLabel] = useState<string | null>(null);
   const [loggedIn, setLoggedIn] = useState(false);
   const [accountName, setAccountName] = useState("Customer Account");
   const [accountRole, setAccountRole] = useState("customer");
@@ -80,10 +96,10 @@ export default function Home() {
 
   useEffect(() => {
     async function loadServices() {
-      const [{ data, error }, galleryResult, promotionResult, reviewResult, siteSettings] = await Promise.all([
+      const [{ data, error }, galleryResult, promotionResult, reviewResult, siteSettings, businessHoursResult, blockedDatesResult] = await Promise.all([
         supabase
         .from("services")
-        .select("id, name, category, description, price_from, estimated_duration_minutes, icon_name")
+        .select("id, name, category, description, price_from, estimated_duration_minutes, icon_name, is_popular, is_recommended")
         .eq("active", true)
         .order("name", { ascending: true }),
         supabase
@@ -106,18 +122,45 @@ export default function Home() {
           .order("created_at", { ascending: false })
           .limit(6),
         loadSiteSettings(supabase),
+        supabase
+          .from("business_hours")
+          .select("day_of_week, is_open, opens_at, closes_at, slot_duration_minutes, max_bookings_per_slot"),
+        supabase
+          .from("blocked_booking_dates")
+          .select("blocked_date")
+          .limit(500),
       ]);
 
       if (error) {
         setServicesError(error.message);
       } else {
-        setServices(data || []);
+        setServices((data || []) as PublicService[]);
       }
       setServicesLoading(false);
       if (!galleryResult.error) setGallery((galleryResult.data || []) as GalleryItem[]);
       if (!promotionResult.error) setPromotions((promotionResult.data || []) as Promotion[]);
       if (!reviewResult.error) setReviews((reviewResult.data || []) as PublicReview[]);
       setSettings(siteSettings);
+      if (!businessHoursResult.error) setBusinessHours((businessHoursResult.data || []) as BusinessHoursRow[]);
+      if (!blockedDatesResult.error) {
+        setBlockedDates((blockedDatesResult.data || []).map((row) => (row as { blocked_date: string }).blocked_date));
+      }
+
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const tomorrowKey = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+      const [todaySlots, tomorrowSlots] = await Promise.all([
+        supabase.rpc("get_available_booking_slots", { target_date: todayKey }),
+        supabase.rpc("get_available_booking_slots", { target_date: tomorrowKey }),
+      ]);
+      const today = (todaySlots.data || []) as Array<{ slot_time: string; remaining_capacity: number }>;
+      const tomorrow = (tomorrowSlots.data || []) as Array<{ slot_time: string; remaining_capacity: number }>;
+      if (today.length > 0) {
+        setNextAvailableLabel("Available today");
+      } else if (tomorrow.length > 0) {
+        setNextAvailableLabel(`Next available: Tomorrow ${formatSlotTime(tomorrow[0].slot_time)}`);
+      } else {
+        setNextAvailableLabel(null);
+      }
     }
 
     void loadServices();
@@ -236,7 +279,8 @@ export default function Home() {
         ) : (
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {services.map((service) => {
-              return <article key={service.id} className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-red-200 hover:shadow-md"><div className="flex items-start justify-between"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-600">{createElement(resolveServiceIcon(service.icon_name), { size: 21 })}</div><span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500">{service.category || "Automotive"}</span></div><h3 className="mt-5 text-lg font-bold">{service.name}</h3><p className="mt-2 min-h-14 text-sm leading-6 text-slate-500">{service.description || "Professional vehicle care from CK Motors."}</p><div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4"><span className="text-sm font-bold text-red-600">{service.price_from !== null ? `From LKR ${Number(service.price_from).toLocaleString()}` : "Price on request"}</span><Link href={loggedIn ? "/dashboard?section=bookings" : "/register"} className="text-sm font-bold text-slate-700 transition group-hover:text-red-600">Book now <span aria-hidden>→</span></Link></div></article>;
+              const priceLabel = service.price_from !== null ? `From LKR ${Number(service.price_from).toLocaleString()}` : "Price on request";
+              return <article key={service.id} className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-red-200 hover:shadow-md"><div className="flex items-start justify-between"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-50 text-red-600">{createElement(resolveServiceIcon(service.icon_name), { size: 21 })}</div><div className="flex flex-wrap items-center justify-end gap-1.5"><span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-bold text-slate-500">{service.category || "Automotive"}</span>{service.is_popular && <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-amber-800">Popular</span>}{service.is_recommended && <span className="rounded-full border border-sky-300 bg-sky-100 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-sky-800">Recommended</span>}</div></div><h3 className="mt-5 text-lg font-bold">{service.name}</h3><p className="mt-2 min-h-14 text-sm leading-6 text-slate-500">{service.description || "Professional vehicle care from CK Motors."}</p><div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4"><button type="button" onClick={() => { trackPublicEvent("service_price_opened", { serviceId: service.id, serviceName: service.name }); setContactService(service); }} className="inline-flex cursor-pointer items-center gap-1.5 rounded-md text-sm font-bold text-red-600 transition-colors hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500" aria-label={`Contact CK Motors about pricing for ${service.name}`}><Phone size={14} aria-hidden /> {priceLabel}</button><Link href={loggedIn ? "/dashboard?section=bookings" : "/register"} className="text-sm font-bold text-slate-700 transition group-hover:text-red-600">Book now <span aria-hidden>→</span></Link></div></article>;
             })}
           </div>
         )}
@@ -315,6 +359,18 @@ export default function Home() {
             {(selectedGallery.title || selectedGallery.caption) && <div className="min-w-0 bg-[#10151e] p-4 text-white"><p className="break-words font-bold">{selectedGallery.title}</p>{selectedGallery.caption && <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-300">{formatMediaCaption(selectedGallery.caption)}</p>}</div>}
           </div>
         </div>
+      )}
+      {contactService && (
+        <ServiceContactModal
+          service={contactService}
+          priceLabel={contactService.price_from !== null ? `From LKR ${Number(contactService.price_from).toLocaleString()}` : "Price on request"}
+          settings={site}
+          businessHours={businessHours}
+          blockedDates={blockedDates}
+          nextAvailableLabel={nextAvailableLabel}
+          bookingHref={loggedIn ? `/dashboard?section=bookings&serviceId=${contactService.id}` : "/register"}
+          onClose={() => setContactService(null)}
+        />
       )}
     </main>
   );

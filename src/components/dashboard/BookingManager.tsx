@@ -54,10 +54,12 @@ export default function BookingManager({
   onAddVehicle,
   highlightBookingId,
   onHighlightHandled,
+  preselectServiceId,
 }: {
   onAddVehicle?: () => void;
   highlightBookingId?: string | null;
   onHighlightHandled?: () => void;
+  preselectServiceId?: string | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
 
@@ -160,6 +162,16 @@ export default function BookingManager({
 
     return () => window.clearTimeout(timer);
   }, [loadData]);
+
+  useEffect(() => {
+    if (!preselectServiceId || serviceId) return;
+    const timer = window.setTimeout(() => {
+      if (services.some((service) => service.id === preselectServiceId)) {
+        setServiceId(preselectServiceId);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [preselectServiceId, services, serviceId]);
 
   useEffect(() => {
     if (!bookingDate) return;
