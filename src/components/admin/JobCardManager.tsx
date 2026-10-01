@@ -1,10 +1,18 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardList, ImagePlus, Plus, Printer, Search, Trash2, Video, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { whatsappUrl } from "@/lib/site-settings";
+import MediaUploadProgress from "@/components/admin/MediaUploadProgress";
+import {
+  initialMediaUploadState,
+  uploadErrorMessage,
+  uploadFileWithProgress,
+  type MediaUploadState,
+} from "@/lib/supabase/upload-with-progress";
+import { formatMediaCaption } from "@/lib/media-caption";
 
 type Booking = {
   id: string;
@@ -63,6 +71,12 @@ type StatusEntry = {
   new_status: string;
   created_at: string;
 };
+type PendingMediaUpload = {
+  card: JobCard;
+  stage: "before" | "after";
+  file: File;
+  caption: string;
+};
 
 const statuses: JobStatus[] = [
   "draft", "booked", "checked_in", "inspection", "diagnosing",
@@ -91,6 +105,9 @@ export default function JobCardManager() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [uploadState, setUploadState] = useState<MediaUploadState | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const retryUploadRef = useRef<PendingMediaUpload | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [printCard, setPrintCard] = useState<JobCard | null>(null);
@@ -153,6 +170,8 @@ export default function JobCardManager() {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => () => abortControllerRef.current?.abort(), []);
 
   const selectedBooking = bookings.find((booking) => booking.id === bookingId);
   const effectiveCustomerId = flow === "booking" ? selectedBooking?.user_id || "" : customerId;
@@ -282,20 +301,61 @@ export default function JobCardManager() {
       return;
     }
     const caption = window.prompt("Add a caption for this media (optional):")?.trim() || "";
+    retryUploadRef.current = { card, stage, file, caption };
+    await runMediaUpload(retryUploadRef.current);
+  }
+
+  async function runMediaUpload(pending: PendingMediaUpload) {
+    const { card, stage, file, caption } = pending;
+    const isImage = ["image/jpeg", "image/png", "image/webp"].includes(file.type);
+    if (abortControllerRef.current) return;
     const extension = file.name.split(".").pop()?.toLowerCase();
-    if (!extension) {
-      setError("The selected file has no extension.");
+    const validExtensions = isImage ? ["jpg", "jpeg", "png", "webp"] : ["mp4", "webm"];
+    if (!extension || !validExtensions.includes(extension)) {
+      setError("The selected file extension does not match a supported media format.");
       return;
     }
     const path = `job-cards/${card.id}/${stage}/${crypto.randomUUID()}.${extension}`;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setUploading(card.id);
     setError("");
-    const { error: uploadError } = await supabase.storage.from("service-media").upload(path, file, { contentType: file.type, upsert: false });
-    if (uploadError) {
+    setNotice("");
+    setUploadState(initialMediaUploadState(file));
+    try {
+      await uploadFileWithProgress({
+        client: supabase,
+        bucket: "service-media",
+        path,
+        file,
+        signal: controller.signal,
+        onProgress: (progress) => setUploadState((current) => current ? { ...current, ...progress, status: "uploading" } : current),
+      });
+    } catch (uploadError) {
+      if (controller.signal.aborted || (uploadError instanceof DOMException && uploadError.name === "AbortError")) {
+        const cleanup = await supabase.storage.from("service-media").remove([path]);
+        if (cleanup.error) console.warn("Cancelled service-media cleanup failed:", cleanup.error);
+        setUploadState((current) => current ? { ...current, status: "cancelled" } : current);
+        setUploading(null);
+        abortControllerRef.current = null;
+        return;
+      }
+      const message = uploadErrorMessage(uploadError);
+      setUploadState((current) => current ? { ...current, status: "error", error: message } : current);
       setUploading(null);
-      setError(`Media upload failed: ${uploadError.message}`);
+      setError(`Media upload failed: ${message}`);
+      abortControllerRef.current = null;
       return;
     }
+    if (controller.signal.aborted) {
+      const cleanup = await supabase.storage.from("service-media").remove([path]);
+      if (cleanup.error) console.warn("Cancelled service-media cleanup failed:", cleanup.error);
+      setUploadState((current) => current ? { ...current, status: "cancelled" } : current);
+      setUploading(null);
+      abortControllerRef.current = null;
+      return;
+    }
+    setUploadState((current) => current ? { ...current, status: "saving" } : current);
     const { error: insertError } = await supabase.from("service_media").insert({
       job_card_id: card.id,
       media_stage: stage,
@@ -306,10 +366,15 @@ export default function JobCardManager() {
     if (insertError) {
       const cleanup = await supabase.storage.from("service-media").remove([path]);
       setUploading(null);
-      setError(`Media metadata could not be saved: ${insertError.message}${cleanup.error ? ` Storage cleanup warning: ${cleanup.error.message}` : ""}`);
+      const message = `Media metadata could not be saved: ${insertError.message}${cleanup.error ? ` Storage cleanup warning: ${cleanup.error.message}` : ""}`;
+      setUploadState((current) => current ? { ...current, status: "error", error: message } : current);
+      setError(message);
+      abortControllerRef.current = null;
       return;
     }
     setUploading(null);
+    abortControllerRef.current = null;
+    setUploadState((current) => current ? { ...current, status: "complete" } : current);
     setNotice(`${label(stage)} media uploaded.`);
     await load();
   }
@@ -337,6 +402,15 @@ export default function JobCardManager() {
       </div>
       {error && <p role="alert" className="rounded-lg border border-red-900/60 bg-red-950/20 px-4 py-3 text-xs text-red-300">{error}</p>}
       {notice && <p role="status" className="admin-alert admin-alert--success rounded-lg border px-4 py-3 text-xs font-semibold">{notice}</p>}
+      {uploadState && (
+        <MediaUploadProgress
+          upload={uploadState}
+          onCancel={() => abortControllerRef.current?.abort()}
+          onRetry={() => {
+            if (retryUploadRef.current && !abortControllerRef.current) void runMediaUpload(retryUploadRef.current);
+          }}
+        />
+      )}
       <div className="relative max-w-lg"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search job card, customer, phone, vehicle..." className="w-full rounded-lg border border-white/10 bg-[#111] py-3 pl-10 pr-4 text-sm outline-none focus:border-[#1688ff]" /></div>
       {showForm && (
         <form onSubmit={saveCard} className="space-y-4 rounded-2xl border border-[#1688ff]/30 bg-[#10151e] p-5 md:p-7">
@@ -413,8 +487,8 @@ export default function JobCardManager() {
                 <div className="grid gap-4 border-t border-white/10 p-5 sm:grid-cols-2">
                   {(["before", "after"] as const).map((stage) => (
                     <div key={stage} className="rounded-xl border border-white/5 bg-black/20 p-3">
-                      <div className="mb-3 flex items-center justify-between"><h4 className="text-xs font-black uppercase tracking-wider text-[#8bc9ff]">{stage}</h4><label className={`inline-flex cursor-pointer items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[10px] font-bold ${uploading === card.id ? "opacity-50" : "hover:border-[#1688ff]"}`}><input disabled={uploading === card.id} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" className="sr-only" onChange={(event) => void uploadMedia(card, stage, event)} />{uploading === card.id ? "Uploading..." : <><ImagePlus size={13} /> Add media</>}</label></div>
-                      <div className="grid grid-cols-2 gap-2">{cardMedia.filter((item) => item.media_stage === stage).map((item) => <div key={item.id} className="relative overflow-hidden rounded-lg bg-black"><button type="button" title="Delete media" onClick={() => void deleteMedia(item)} className="absolute right-1 top-1 z-10 rounded bg-black/80 p-1 text-red-300"><Trash2 size={13} /></button>{item.media_type === "video" ? <video src={item.signedUrl} controls playsInline preload="metadata" className="aspect-video w-full object-cover" /> : <img src={item.signedUrl} alt={item.caption || `${stage} service photo`} loading="lazy" className="aspect-video w-full object-cover" />}{item.caption && <p className="p-2 text-[10px] text-gray-300">{item.caption}</p>}</div>)}</div>
+                      <div className="mb-3 flex items-center justify-between"><h4 className="text-xs font-black uppercase tracking-wider text-[#8bc9ff]">{stage}</h4><label className={`inline-flex cursor-pointer items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[10px] font-bold ${uploading !== null ? "cursor-not-allowed opacity-50" : "hover:border-[#1688ff]"}`}><input disabled={uploading !== null} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" className="sr-only" onChange={(event) => void uploadMedia(card, stage, event)} />{uploading !== null ? "Uploading..." : <><ImagePlus size={13} /> Add media</>}</label></div>
+                      <div className="grid grid-cols-2 gap-2">{cardMedia.filter((item) => item.media_stage === stage).map((item) => <div key={item.id} className="relative min-w-0 overflow-hidden rounded-lg bg-black"><button type="button" title="Delete media" onClick={() => void deleteMedia(item)} className="absolute right-1 top-1 z-10 rounded bg-black/80 p-1 text-red-300"><Trash2 size={13} /></button>{item.media_type === "video" ? <video src={item.signedUrl} controls playsInline preload="metadata" className="aspect-video w-full object-cover" /> : <img src={item.signedUrl} alt={item.caption || `${stage} service photo`} loading="lazy" className="aspect-video w-full object-cover" />}{item.caption && <p className="whitespace-pre-wrap break-words p-3 text-sm leading-relaxed text-gray-300">{formatMediaCaption(item.caption)}</p>}</div>)}</div>
                     </div>
                   ))}
                 </div>

@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { formatMediaCaption } from "@/lib/media-caption";
 
 type CustomerJobCard = {
   id: string;
@@ -88,7 +89,7 @@ export default function JobCardProgress() {
                 const reached = complete || (currentIndex >= 0 && index <= currentIndex);
                 return <li key={status} className={`rounded-md border px-2 py-2 text-center text-[9px] ${reached ? "border-[#1688ff]/40 bg-[#102741] text-[#b9ddff]" : "border-white/5 bg-white/[0.02] text-gray-600"}`}>{statusLabel(status)}</li>;
               })}</ol>}
-              {cardMedia.length > 0 && <div className="mt-4 grid gap-3 sm:grid-cols-2">{(["before", "after"] as const).map((stage) => <div key={stage}><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">{stage}</p><div className="grid grid-cols-2 gap-2">{cardMedia.filter((item) => item.media_stage === stage).map((item) => <div key={item.id} className="overflow-hidden rounded-lg bg-black">{item.media_type === "video" ? <video src={item.signedUrl} controls playsInline preload="metadata" className="aspect-video w-full object-cover" /> : <img src={item.signedUrl} alt={item.caption || `${stage} service photo`} loading="lazy" className="aspect-video w-full object-cover" />}{item.caption && <p className="p-2 text-[10px] text-gray-400">{item.caption}</p>}</div>)}</div></div>)}</div>}
+              {cardMedia.length > 0 && <div className="mt-4 grid gap-3 sm:grid-cols-2">{(["before", "after"] as const).map((stage) => <div key={stage}><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">{stage}</p><div className="grid grid-cols-2 gap-2">{cardMedia.filter((item) => item.media_stage === stage).map((item) => <div key={item.id} className="min-w-0 overflow-hidden rounded-lg bg-black">{item.media_type === "video" ? <video src={item.signedUrl} controls playsInline preload="metadata" className="aspect-video w-full object-cover" /> : <img src={item.signedUrl} alt={item.caption || `${stage} service photo`} loading="lazy" className="aspect-video w-full object-cover" />}{item.caption && <p className="whitespace-pre-wrap break-words p-3 text-sm leading-relaxed text-gray-300">{formatMediaCaption(item.caption)}</p>}</div>)}</div></div>)}</div>}
               {card.current_mileage !== null && <p className="mt-2 text-[10px] text-gray-600">Intake mileage: {card.current_mileage.toLocaleString()} km · {new Date(card.created_at).toLocaleDateString()}</p>}
             </article>
           );

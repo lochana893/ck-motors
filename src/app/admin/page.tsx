@@ -60,7 +60,17 @@ import VisitorAnalyticsSection from "@/components/admin/VisitorAnalyticsSection"
 import AdminNotificationBell from "@/components/admin/AdminNotificationBell";
 import ReportCenter from "@/components/admin/reports/ReportCenter";
 import ServiceIconPicker from "@/components/admin/ServiceIconPicker";
+import MediaUploadProgress from "@/components/admin/MediaUploadProgress";
 import { resolveServiceIcon } from "@/lib/service-icons";
+import {
+  initialMediaUploadState,
+  uploadErrorMessage,
+  uploadFileWithProgress,
+  type MediaUploadProgress as MediaUploadMetrics,
+  type MediaUploadState,
+  type MediaUploadStatus,
+} from "@/lib/supabase/upload-with-progress";
+import { formatMediaCaption } from "@/lib/media-caption";
 
 
 
@@ -210,6 +220,12 @@ type GalleryItem = {
   is_active: boolean;
   display_order: number;
   created_at: string;
+};
+
+type GalleryUploadCallbacks = {
+  signal: AbortSignal;
+  onProgress: (progress: MediaUploadMetrics) => void;
+  onStatus: (status: MediaUploadStatus, error?: string) => void;
 };
 
 type MessageRecipientMode = "all" | "selected" | "individual";
@@ -1372,8 +1388,11 @@ export default function AdminPage() {
       return "gallery-images";
     }
 
-    async function saveGalleryItem(formData: FormData) {
-      if (!["admin", "staff"].includes(adminProfile?.role || "")) return;
+    async function saveGalleryItem(formData: FormData, callbacks: GalleryUploadCallbacks): Promise<"complete" | "error" | "cancelled"> {
+      if (!["admin", "staff"].includes(adminProfile?.role || "")) {
+        callbacks.onStatus("error", "You are not authorized to manage gallery media.");
+        return "error";
+      }
       const file = formData.get("file");
       const mediaType = formData.get("media_type") === "video" ? "video" : "image";
       const title = String(formData.get("title") || "").trim() || null;
@@ -1384,11 +1403,13 @@ export default function AdminPage() {
       const hasNewFile = file instanceof File && file.size > 0;
       if (!editingGallery && !hasNewFile) {
         notifyGallery("error", `Please select a ${mediaType}.`);
-        return;
+        callbacks.onStatus("error", `Please select a ${mediaType}.`);
+        return "error";
       }
       if (editingGallery && mediaType !== previousMediaType && !hasNewFile) {
         notifyGallery("error", "Select a file when changing the media type.");
-        return;
+        callbacks.onStatus("error", "Select a file when changing the media type.");
+        return "error";
       }
       setError("");
       let storagePath = editingGallery?.storage_path || null;
@@ -1401,16 +1422,20 @@ export default function AdminPage() {
           : ["video/mp4", "video/webm"];
         const maximumSize = mediaType === "image" ? 5 * 1024 * 1024 : 100 * 1024 * 1024;
         if (!acceptedTypes.includes(file.type)) {
-          notifyGallery("error", mediaType === "image"
+          const message = mediaType === "image"
             ? "Choose a JPG, JPEG, PNG, or WEBP image."
-            : "Choose an MP4 or WEBM video.");
-          return;
+            : "Choose an MP4 or WEBM video.";
+          notifyGallery("error", message);
+          callbacks.onStatus("error", message);
+          return "error";
         }
         if (file.size > maximumSize) {
-          notifyGallery("error", mediaType === "image"
+          const message = mediaType === "image"
             ? "Images must be 5 MB or smaller."
-            : "Videos must be 100 MB or smaller.");
-          return;
+            : "Videos must be 100 MB or smaller.";
+          notifyGallery("error", message);
+          callbacks.onStatus("error", message);
+          return "error";
         }
         const extension = file.name.split(".").pop()?.toLowerCase();
         const allowedExtensions = mediaType === "image"
@@ -1418,25 +1443,52 @@ export default function AdminPage() {
           : ["mp4", "webm"];
         if (!extension || !allowedExtensions.includes(extension)) {
           notifyGallery("error", "The selected file extension does not match a supported media format.");
-          return;
+          callbacks.onStatus("error", "The selected file extension does not match a supported media format.");
+          return "error";
         }
         bucket = "gallery-media";
         storagePath = `gallery/${mediaType === "image" ? "images" : "videos"}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
-        const upload = await supabase.storage.from(bucket).upload(storagePath, file, { contentType: file.type, upsert: false });
-        if (upload.error) {
+        callbacks.onStatus("preparing");
+        try {
+          await uploadFileWithProgress({
+            client: supabase,
+            bucket,
+            path: storagePath,
+            file,
+            signal: callbacks.signal,
+            onProgress: callbacks.onProgress,
+          });
+        } catch (uploadError) {
+          if (callbacks.signal.aborted || (uploadError instanceof DOMException && uploadError.name === "AbortError")) {
+            const cleanup = await supabase.storage.from(bucket).remove([storagePath]);
+            if (cleanup.error) console.warn("Gallery cancelled upload cleanup failed:", cleanup.error);
+            callbacks.onStatus("cancelled");
+            return "cancelled";
+          }
+          const message = uploadErrorMessage(uploadError);
           console.error("Gallery storage upload failed:", {
             operation: "storage.upload",
             bucket,
             path: storagePath,
-            error: upload.error,
+            error: uploadError,
           });
-          notifyGallery("error", `Gallery ${mediaType} upload failed: ${upload.error.message}`);
-          return;
+          notifyGallery("error", `Gallery ${mediaType} upload failed: ${message}`);
+          callbacks.onStatus("error", message);
+          return "error";
         }
         const publicUrl = supabase.storage.from(bucket).getPublicUrl(storagePath).data.publicUrl;
         imageUrl = mediaType === "image" ? publicUrl : null;
         videoUrl = mediaType === "video" ? publicUrl : null;
       }
+      if (callbacks.signal.aborted) {
+        callbacks.onStatus("cancelled");
+        if (hasNewFile && storagePath) {
+          const cleanup = await supabase.storage.from(bucket).remove([storagePath]);
+          if (cleanup.error) console.warn("Gallery cancelled upload cleanup failed:", cleanup.error);
+        }
+        return "cancelled";
+      }
+      callbacks.onStatus("saving");
       const payload = {
         title,
         caption,
@@ -1458,13 +1510,14 @@ export default function AdminPage() {
           error: result.error,
         });
         notifyGallery("error", `Unable to save gallery item: ${result.error.message}`);
+        callbacks.onStatus("error", `Unable to save gallery item: ${result.error.message}`);
         if (hasNewFile && storagePath) {
           const cleanup = await supabase.storage.from(bucket).remove([storagePath]);
           if (cleanup.error) {
             console.warn("Gallery upload cleanup failed:", cleanup.error);
           }
         }
-        return;
+        return "error";
       }
       let cleanupWarning = "";
       if (editingGallery && hasNewFile && editingGallery.storage_path) {
@@ -1476,7 +1529,9 @@ export default function AdminPage() {
       }
       setShowGalleryModal(false);
       notifyGallery(cleanupWarning ? "error" : "success", cleanupWarning || (editingGallery ? "Gallery media updated." : "Gallery media added."));
+      callbacks.onStatus("complete");
       await loadAdminData();
+      return "complete";
     }
 
     async function deleteGalleryItem(item: GalleryItem) {
@@ -4066,7 +4121,7 @@ function GallerySection({ gallery, onAdd, onEdit, onToggle, onDelete }: { galler
                 </div>
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div><h3 className="font-bold">{item.title || `Untitled ${isVideo ? "video" : "image"}`}</h3><p className="mt-1 text-xs text-gray-500">{item.caption || "No caption"}</p></div>
+                    <div className="min-w-0"><h3 className="break-words font-bold">{item.title || `Untitled ${isVideo ? "video" : "image"}`}</h3><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-300">{formatMediaCaption(item.caption) || "No caption"}</p></div>
                     <StatusPill active={item.is_active} text={item.is_active ? "Active" : "Inactive"} />
                   </div>
                   <p className="mt-3 text-[10px] text-gray-600">Order {item.display_order} · {new Date(item.created_at).toLocaleDateString()}</p>
@@ -4085,18 +4140,23 @@ function GallerySection({ gallery, onAdd, onEdit, onToggle, onDelete }: { galler
   );
 }
 
-function GalleryModal({ item, onClose, onSubmit }: { item: GalleryItem | null; onClose: () => void; onSubmit: (formData: FormData) => Promise<void> }) {
+function GalleryModal({ item, onClose, onSubmit }: { item: GalleryItem | null; onClose: () => void; onSubmit: (formData: FormData, callbacks: GalleryUploadCallbacks) => Promise<"complete" | "error" | "cancelled"> }) {
   const initialMediaType = item?.media_type || "image";
   const [mediaType, setMediaType] = useState<"image" | "video">(initialMediaType);
   const [preview, setPreview] = useState(initialMediaType === "video" ? item?.video_url || "" : item?.image_url || "");
   const [saving, setSaving] = useState(false);
+  const [uploadState, setUploadState] = useState<MediaUploadState | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const lastSubmissionRef = useRef<FormData | null>(null);
 
   useEffect(() => {
     return () => {
       if (preview.startsWith("blob:")) URL.revokeObjectURL(preview);
     };
   }, [preview]);
+
+  useEffect(() => () => abortControllerRef.current?.abort(), []);
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
@@ -4106,15 +4166,48 @@ function GalleryModal({ item, onClose, onSubmit }: { item: GalleryItem | null; o
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose, saving]);
 
+  async function runSubmission(formData: FormData) {
+    if (saving) return;
+    const selectedFile = formData.get("file");
+    const file = selectedFile instanceof File && selectedFile.size > 0 ? selectedFile : null;
+    setUploadState(file
+      ? initialMediaUploadState(file)
+      : {
+          status: "preparing",
+          fileName: "Gallery details",
+          uploadedBytes: 0,
+          totalBytes: 0,
+          percent: 0,
+          bytesPerSecond: 0,
+          secondsRemaining: null,
+        });
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    setSaving(true);
+    try {
+      await onSubmit(formData, {
+        signal: controller.signal,
+        onProgress: (progress) => setUploadState((current) => current ? { ...current, ...progress, status: "uploading" } : current),
+        onStatus: (status, error) => setUploadState((current) => current ? { ...current, status, error } : current),
+      });
+    } catch (submissionError) {
+      if (controller.signal.aborted || (submissionError instanceof DOMException && submissionError.name === "AbortError")) {
+        setUploadState((current) => current ? { ...current, status: "cancelled" } : current);
+      } else {
+        setUploadState((current) => current ? { ...current, status: "error", error: uploadErrorMessage(submissionError) } : current);
+      }
+    } finally {
+      if (abortControllerRef.current === controller) abortControllerRef.current = null;
+      setSaving(false);
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
-    setSaving(true);
-    try {
-      await onSubmit(new FormData(event.currentTarget));
-    } finally {
-      setSaving(false);
-    }
+    const formData = new FormData(event.currentTarget);
+    lastSubmissionRef.current = formData;
+    await runSubmission(formData);
   }
 
   function changeMediaType(nextType: "image" | "video") {
@@ -4162,7 +4255,15 @@ function GalleryModal({ item, onClose, onSubmit }: { item: GalleryItem | null; o
           {preview && (mediaType === "video"
             ? <video src={preview} poster={item?.thumbnail_url || undefined} controls playsInline preload="metadata" className="max-h-56 w-full rounded-xl bg-black object-contain" />
             : <img src={preview} alt="Selected image preview" className="max-h-56 w-full rounded-xl object-cover" />)}
-          {saving && <p role="status" className="rounded-lg border border-[#1688ff]/20 bg-[#1688ff]/10 px-3 py-2 text-xs text-[#8bc9ff]">{item ? "Saving media..." : "Uploading media... Please wait."}</p>}
+          {uploadState && (
+            <MediaUploadProgress
+              upload={uploadState}
+              onCancel={() => abortControllerRef.current?.abort()}
+              onRetry={() => {
+                if (lastSubmissionRef.current) void runSubmission(lastSubmissionRef.current);
+              }}
+            />
+          )}
           <label className="gallery-modal-label block text-xs font-bold">Title<input name="title" defaultValue={item?.title || ""} className="gallery-modal-control mt-2 rounded-lg px-4 py-3 text-sm" /></label>
           <label className="gallery-modal-label block text-xs font-bold">Caption<textarea name="caption" defaultValue={item?.caption || ""} rows={3} className="gallery-modal-control mt-2 rounded-lg px-4 py-3 text-sm" /></label>
           <div className="grid gap-4 sm:grid-cols-2">

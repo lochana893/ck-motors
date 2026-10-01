@@ -23,6 +23,7 @@ import PublicVisitCounter from "@/components/PublicVisitCounter";
 import { createClient } from "@/lib/supabase/client";
 import { loadSiteSettings, phoneUrl, validEmail, whatsappUrl, type SiteSettings } from "@/lib/site-settings";
 import { resolveServiceIcon } from "@/lib/service-icons";
+import { formatMediaCaption } from "@/lib/media-caption";
 
 type PublicService = {
   id: string;
@@ -272,7 +273,7 @@ export default function Home() {
                     </>
                   ) : null}
                 </span>
-                {(item.title || item.caption) && <span className="block border-t border-slate-100 p-4"><strong className="block text-sm">{item.title}</strong><span className="mt-1 block text-xs text-slate-500">{item.caption}</span></span>}
+                {(item.title || item.caption) && <span className="block min-w-0 border-t border-slate-100 p-4"><strong className="block break-words text-sm">{item.title}</strong>{item.caption && <span className="mt-2 block whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-600">{formatMediaCaption(item.caption)}</span>}</span>}
               </button>
             ))}
           </div>
@@ -311,7 +312,7 @@ export default function Home() {
             ) : selectedGallery.image_url ? (
               <img src={selectedGallery.image_url} alt={selectedGallery.title || "CK Motors workshop"} className="max-h-[82vh] max-w-full object-contain" />
             ) : null}
-            {(selectedGallery.title || selectedGallery.caption) && <div className="bg-[#10151e] p-4 text-white"><p className="font-bold">{selectedGallery.title}</p><p className="mt-1 text-sm text-slate-400">{selectedGallery.caption}</p></div>}
+            {(selectedGallery.title || selectedGallery.caption) && <div className="min-w-0 bg-[#10151e] p-4 text-white"><p className="break-words font-bold">{selectedGallery.title}</p>{selectedGallery.caption && <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-300">{formatMediaCaption(selectedGallery.caption)}</p>}</div>}
           </div>
         </div>
       )}

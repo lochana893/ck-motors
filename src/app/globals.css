@@ -227,6 +227,22 @@ a { text-decoration: none; }
   color: #ffffff !important;
 }
 
+.portal-surface a.admin-view-site-link,
+.portal-surface a.admin-view-site-link .text-white,
+.portal-surface a.admin-view-site-link svg {
+  color: #ffffff !important;
+}
+
+.portal-surface a.admin-view-site-link {
+  border-color: #0b4f8a !important;
+  background-color: #062b55 !important;
+}
+
+.portal-surface a.admin-view-site-link:hover {
+  border-color: #1683ff !important;
+  background-color: #0a3b72 !important;
+}
+
 .theme-root[data-theme="light"] .portal-surface [class~="text-gray-400"],
 .theme-root[data-theme="light"] .portal-surface [class~="text-gray-500"],
 .theme-root[data-theme="light"] .portal-surface [class~="text-gray-600"] {
