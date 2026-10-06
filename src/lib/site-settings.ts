@@ -30,8 +30,8 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   business_name: "CK Motors",
   tagline: "Drive With Confidence",
   business_description: "Professional vehicle maintenance, repairs and automotive care.",
-  address: "",
-  city_area: "Sri Lanka",
+  address: "Imbulgoda",
+  city_area: "Akuressa",
   primary_phone: "",
   secondary_phone: "",
   whatsapp_number: "",
@@ -71,7 +71,24 @@ function settingsFromRow(row: WebsiteSettingsRow | null): SiteSettings {
     }
   }
 
+  if (!settings.address.trim()) {
+    settings.address = DEFAULT_SITE_SETTINGS.address;
+    if (!settings.city_area.trim() || settings.city_area.toLowerCase() === "sri lanka") {
+      settings.city_area = DEFAULT_SITE_SETTINGS.city_area;
+    }
+  }
+  settings.address = normalizeBusinessAddress(settings.address);
+  if (/\bakuressa\b/i.test(settings.address)) {
+    settings.address = settings.address.replace(/,?\s*akuressa\b/gi, "").trim();
+    if (!settings.city_area || settings.city_area.toLowerCase() === "sri lanka") {
+      settings.city_area = "Akuressa";
+    }
+  }
   return settings;
+}
+
+function normalizeBusinessAddress(address: string) {
+  return address.replace(/\bI(?=bulgoda\b)/gi, "Im");
 }
 
 export async function loadSiteSettings(supabase: SupabaseClient): Promise<SiteSettings> {
@@ -115,7 +132,7 @@ export async function saveSiteSettings(
   const payload = Object.fromEntries(
     SITE_SETTING_KEYS
       .filter((key) => Object.prototype.hasOwnProperty.call(row, key))
-      .map((key) => [key, settings[key]]),
+      .map((key) => [key, key === "address" ? normalizeBusinessAddress(settings.address) : settings[key]]),
   );
 
   if (Object.keys(payload).length === 0) {

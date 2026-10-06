@@ -10,11 +10,12 @@ import {
 
 import { createClient } from "@/lib/supabase/client";
 
-type ServiceRecord = {
+export type ServiceInvoiceRecord = {
   id: string;
   booking_id: string | null;
   user_id: string;
   vehicle_id: string;
+  created_by: string | null;
   technician_name: string | null;
   mileage: number | null;
   service_date: string;
@@ -27,29 +28,30 @@ type ServiceRecord = {
   technician_notes: string | null;
   recommended_repairs: string | null;
   next_service_date: string | null;
+  next_service_mileage: number | null;
   created_at: string;
 };
 
-type Profile = {
+export type InvoiceCustomer = {
   id: string;
   full_name: string;
   email: string;
   phone: string | null;
 };
 
-type Vehicle = {
+export type InvoiceVehicle = {
   id: string;
   registration_number: string;
   brand: string;
   model: string;
 };
 
-type Booking = {
+export type InvoiceBooking = {
   id: string;
   booking_reference: string;
 };
 
-type ServicePart = {
+export type InvoiceServicePart = {
   id: string;
   part_name: string;
   part_number: string | null;
@@ -61,15 +63,15 @@ type ServicePart = {
 export default function ServiceInvoices() {
   const supabase = useMemo(() => createClient(), []);
 
-  const [records, setRecords] = useState<ServiceRecord[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [records, setRecords] = useState<ServiceInvoiceRecord[]>([]);
+  const [profiles, setProfiles] = useState<InvoiceCustomer[]>([]);
+  const [vehicles, setVehicles] = useState<InvoiceVehicle[]>([]);
+  const [bookings, setBookings] = useState<InvoiceBooking[]>([]);
 
   const [selectedRecord, setSelectedRecord] =
-    useState<ServiceRecord | null>(null);
+    useState<ServiceInvoiceRecord | null>(null);
 
-  const [parts, setParts] = useState<ServicePart[]>([]);
+  const [parts, setParts] = useState<InvoiceServicePart[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
@@ -93,6 +95,7 @@ export default function ServiceInvoices() {
           booking_id,
           user_id,
           vehicle_id,
+          created_by,
           technician_name,
           mileage,
           service_date,
@@ -105,6 +108,7 @@ export default function ServiceInvoices() {
           technician_notes,
           recommended_repairs,
           next_service_date,
+          next_service_mileage,
           created_at
         `)
         .order("service_date", { ascending: false }),
@@ -126,20 +130,20 @@ export default function ServiceInvoices() {
       setError(recordResult.error.message);
     } else {
       setRecords(
-        (recordResult.data || []) as ServiceRecord[]
+        (recordResult.data || []) as ServiceInvoiceRecord[]
       );
     }
 
     if (profileResult.data) {
-      setProfiles(profileResult.data as Profile[]);
+      setProfiles(profileResult.data as InvoiceCustomer[]);
     }
 
     if (vehicleResult.data) {
-      setVehicles(vehicleResult.data as Vehicle[]);
+      setVehicles(vehicleResult.data as InvoiceVehicle[]);
     }
 
     if (bookingResult.data) {
-      setBookings(bookingResult.data as Booking[]);
+      setBookings(bookingResult.data as InvoiceBooking[]);
     }
 
     setLoading(false);
@@ -153,13 +157,15 @@ export default function ServiceInvoices() {
     return () => window.clearTimeout(timer);
   }, [loadRecords]);
 
-  function getCustomer(userId: string) {
+  function getCustomer(userId: string | null) {
+    if (!userId) return undefined;
     return profiles.find(
       (profile) => profile.id === userId
     );
   }
 
-  function getVehicle(vehicleId: string) {
+  function getVehicle(vehicleId: string | null) {
+    if (!vehicleId) return undefined;
     return vehicles.find(
       (vehicle) => vehicle.id === vehicleId
     );
@@ -173,7 +179,7 @@ export default function ServiceInvoices() {
     );
   }
 
-  function invoiceNumber(record: ServiceRecord) {
+  function invoiceNumber(record: ServiceInvoiceRecord) {
     const date = record.service_date.replaceAll("-", "");
 
     return `CKI-${date}-${record.id
@@ -181,7 +187,7 @@ export default function ServiceInvoices() {
       .toUpperCase()}`;
   }
 
-  async function openInvoice(record: ServiceRecord) {
+  async function openInvoice(record: ServiceInvoiceRecord) {
     setInvoiceLoading(true);
     setError("");
 
@@ -205,7 +211,7 @@ export default function ServiceInvoices() {
       return;
     }
 
-    setParts((data || []) as ServicePart[]);
+    setParts((data || []) as InvoiceServicePart[]);
     setSelectedRecord(record);
     setInvoiceLoading(false);
   }
@@ -350,13 +356,14 @@ export default function ServiceInvoices() {
 
       {/* INVOICE MODAL */}
       {selectedRecord && (
-        <InvoiceModal
+        <ServiceInvoiceModal
           record={selectedRecord}
           customer={getCustomer(selectedRecord.user_id)}
           vehicle={getVehicle(selectedRecord.vehicle_id)}
           booking={getBooking(selectedRecord.booking_id)}
           parts={parts}
           invoiceNumber={invoiceNumber(selectedRecord)}
+          preparedBy={getCustomer(selectedRecord.created_by)?.full_name || null}
           close={() => setSelectedRecord(null)}
         />
       )}
@@ -364,23 +371,35 @@ export default function ServiceInvoices() {
   );
 }
 
-function InvoiceModal({
+export function ServiceInvoiceModal({
   record,
   customer,
   vehicle,
   booking,
   parts,
   invoiceNumber,
+  preparedBy,
   close,
 }: {
-  record: ServiceRecord;
-  customer?: Profile;
-  vehicle?: Vehicle;
-  booking?: Booking;
-  parts: ServicePart[];
+  record: ServiceInvoiceRecord;
+  customer?: InvoiceCustomer;
+  vehicle?: InvoiceVehicle;
+  booking?: InvoiceBooking;
+  parts: InvoiceServicePart[];
   invoiceNumber: string;
+  preparedBy: string | null;
   close: () => void;
 }) {
+  // Normal invoices should always fit one A4 page. Once an invoice carries
+  // enough line items or notes that default spacing would risk overflowing,
+  // switch to a denser print layout instead of hiding any invoice data.
+  const hasLongNotes = Boolean(
+    (record.technician_notes && record.technician_notes.length > 180)
+    || (record.recommended_repairs && record.recommended_repairs.length > 180)
+    || record.services_performed.length > 220,
+  );
+  const isDense = parts.length > 6 || hasLongNotes;
+
   return (
     <div className="invoice-print-overlay fixed inset-0 z-[300] overflow-y-auto bg-black/85 p-4 md:p-8">
       <div className="mx-auto max-w-4xl">
@@ -410,7 +429,7 @@ function InvoiceModal({
           </button>
         </div>
 
-        <div className="invoice-print-area rounded-2xl bg-white p-7 text-black shadow-2xl md:p-10">
+        <div className={`invoice-print-area rounded-2xl bg-white p-7 text-black shadow-2xl md:p-10${isDense ? " invoice-dense" : ""}`}>
           {/* HEADER */}
           <div className="flex flex-wrap items-start justify-between gap-6 border-b-2 border-red-600 pb-6">
             <div className="flex min-h-[58px] items-center">
@@ -431,14 +450,15 @@ function InvoiceModal({
                 {invoiceNumber}
               </p>
 
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-600">
                 Service Date: {record.service_date}
               </p>
             </div>
           </div>
+          <p className="mt-2 text-[9px] text-gray-600">CK MOTORS AND CLEANING CENTER · Imbulgoda, Akuressa · 077 272 3940 · 077 725 8599</p>
 
           {/* DETAILS */}
-          <div className="mt-7 grid gap-6 md:grid-cols-2">
+          <div className="invoice-avoid-break mt-7 grid gap-6 md:grid-cols-2">
             <div>
               <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">
                 Bill To
@@ -477,10 +497,11 @@ function InvoiceModal({
                   Mileage: {record.mileage.toLocaleString()} km
                 </p>
               )}
+              {record.technician_name && <p className="mt-1 text-sm text-gray-600">Technician: {record.technician_name}</p>}
             </div>
           </div>
 
-          <div className="mt-6 rounded-lg bg-gray-100 p-4">
+          <div className="invoice-avoid-break mt-6 rounded-lg bg-gray-100 p-4">
             <p className="text-xs text-gray-500">
               Service Type
             </p>
@@ -567,7 +588,7 @@ function InvoiceModal({
           </div>
 
           {/* TOTALS */}
-          <div className="mt-7 ml-auto max-w-sm space-y-3">
+          <div className="invoice-avoid-break mt-7 ml-auto max-w-sm space-y-3">
             <InvoiceRow
               label="Labour Cost"
               value={record.labour_cost}
@@ -606,7 +627,7 @@ function InvoiceModal({
           {(record.technician_notes ||
             record.recommended_repairs ||
             record.next_service_date) && (
-            <div className="mt-8 grid gap-5 border-t border-gray-200 pt-6 md:grid-cols-2">
+            <div className="invoice-avoid-break mt-8 grid gap-5 border-t border-gray-200 pt-6 md:grid-cols-2">
               <div>
                 <p className="text-xs font-black">
                   Technician Notes
@@ -631,9 +652,34 @@ function InvoiceModal({
                     Next Service: {record.next_service_date}
                   </p>
                 )}
+                {record.next_service_mileage != null && <p className="mt-1 text-xs font-bold text-red-600">Next Service Mileage: {record.next_service_mileage.toLocaleString()} km</p>}
               </div>
             </div>
           )}
+
+          {/* SIGNATURES & COMPANY SEAL */}
+          <div className="invoice-signature-section invoice-avoid-break mt-8 grid gap-8 border-t border-gray-200 pt-6 md:grid-cols-2">
+            <div>
+              <div className="invoice-signature-line" />
+              <p className="mt-2 text-xs font-bold text-gray-600">
+                Customer Signature
+              </p>
+            </div>
+
+            <div>
+              <p className="mb-3 text-xs font-bold text-gray-700">Prepared by: {preparedBy?.trim() || "—"}</p>
+              <div className="invoice-signature-line" />
+              <p className="mt-2 text-xs font-bold text-gray-600">
+                Authorized Signature
+              </p>
+
+              <div className="invoice-seal-box mt-4 flex items-center justify-center rounded-md">
+                <p className="text-[9px] uppercase tracking-wider text-gray-400">
+                  Company Seal
+                </p>
+              </div>
+            </div>
+          </div>
 
           {/* FOOTER */}
           <div className="mt-10 border-t border-gray-200 pt-5 text-center">

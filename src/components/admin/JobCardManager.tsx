@@ -470,9 +470,9 @@ export default function JobCardManager() {
             const cardMedia = media.filter((item) => item.job_card_id === card.id);
             const cardHistory = history.filter((item) => item.job_card_id === card.id);
             return (
-              <article key={card.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#10151e]">
+              <article key={card.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#10151e] text-slate-100">
                 <div className="flex flex-wrap items-start justify-between gap-4 border-b border-white/10 p-5">
-                  <div className="min-w-0"><p className="font-mono text-xs font-black tracking-wider text-[#63b4ff]">{card.job_card_number}</p><h3 className="mt-1 text-lg font-black">{vehicle?.registration_number || "Vehicle"} · {vehicle ? `${vehicle.brand} ${vehicle.model}` : ""}</h3><p className="mt-1 text-xs text-gray-400">{customer?.full_name || "Customer"}{customer?.phone ? ` · ${customer.phone}` : ""}</p><p className="mt-2 text-xs text-gray-500">Technician: {technician?.full_name || "Unassigned"} · Mileage: {card.current_mileage?.toLocaleString() || "—"} · Fuel: {card.fuel_level || "—"}</p></div>
+                  <div className="min-w-0"><p className="font-mono text-xs font-black tracking-wider text-[#63b4ff]">{card.job_card_number}</p><h3 className="job-card-vehicle-title mt-1 text-lg font-bold text-white">{vehicle?.registration_number || "Vehicle"} · {vehicle ? `${vehicle.brand} ${vehicle.model}` : ""}</h3><p className="mt-1 text-xs text-slate-300">{customer?.full_name || "Customer"}{customer?.phone ? ` · ${customer.phone}` : ""}</p><p className="mt-2 text-xs text-slate-300"><span className="text-sky-300">Technician:</span> {technician?.full_name || "Unassigned"} <span className="text-sky-300">· Mileage:</span> {card.current_mileage?.toLocaleString() || "—"} <span className="text-sky-300">· Fuel:</span> {card.fuel_level || "—"}</p></div>
                   <div className="flex items-start gap-3">
                     <button type="button" onClick={() => startEdit(card)} className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold text-gray-300 hover:border-[#1688ff] hover:text-white">Edit</button>
                     <button type="button" onClick={() => setPrintCard(card)} className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-3 py-2 text-[10px] font-bold text-gray-300 hover:border-[#1688ff] hover:text-white"><Printer size={14} /> Print / PDF</button>
@@ -481,12 +481,12 @@ export default function JobCardManager() {
                   </div>
                 </div>
                 <div className="grid gap-4 p-5 md:grid-cols-2">
-                  <div className="space-y-2 text-xs"><p><span className="text-gray-500">Complaint:</span> {card.customer_complaint || "—"}</p><p><span className="text-gray-500">Inspection:</span> {card.inspection_notes || "—"}</p><p><span className="text-gray-500">Requested:</span> {card.requested_services || "—"}</p><p><span className="text-gray-500">Estimate:</span> {card.estimated_completion_at ? new Date(card.estimated_completion_at).toLocaleString() : "—"}</p></div>
-                  <div className="rounded-xl border border-white/5 bg-black/20 p-3"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">Status history</p>{cardHistory.length ? cardHistory.slice(0, 5).reverse().map((entry) => <p key={entry.id} className="border-l border-[#1688ff]/40 py-1 pl-3 text-[10px] text-gray-400">{label(entry.new_status)} · {new Date(entry.created_at).toLocaleString()}</p>) : <p className="text-xs text-gray-600">No status updates.</p>}</div>
+                  <div className="space-y-2 text-xs text-slate-100"><p><span className="text-sky-300">Complaint:</span> {card.customer_complaint || "—"}</p><p><span className="text-sky-300">Inspection:</span> {card.inspection_notes || "—"}</p><p><span className="text-sky-300">Requested:</span> {card.requested_services || "—"}</p><p><span className="text-sky-300">Estimate:</span> {card.estimated_completion_at ? new Date(card.estimated_completion_at).toLocaleString() : "—"}</p></div>
+                  <div className="rounded-xl border border-white/10 bg-black/25 p-3"><p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-sky-300">Status history</p>{cardHistory.length ? cardHistory.slice(0, 5).reverse().map((entry) => <p key={entry.id} className="border-l border-[#1688ff]/50 py-1 pl-3 text-[10px] text-slate-200">{label(entry.new_status)} · {new Date(entry.created_at).toLocaleString()}</p>) : <p className="text-xs text-slate-400">No status updates.</p>}</div>
                 </div>
                 <div className="grid gap-4 border-t border-white/10 p-5 sm:grid-cols-2">
                   {(["before", "after"] as const).map((stage) => (
-                    <div key={stage} className="rounded-xl border border-white/5 bg-black/20 p-3">
+                    <div key={stage} className="rounded-xl border border-white/10 bg-black/25 p-3 text-slate-100">
                       <div className="mb-3 flex items-center justify-between"><h4 className="text-xs font-black uppercase tracking-wider text-[#8bc9ff]">{stage}</h4><label className={`inline-flex cursor-pointer items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[10px] font-bold ${uploading !== null ? "cursor-not-allowed opacity-50" : "hover:border-[#1688ff]"}`}><input disabled={uploading !== null} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" className="sr-only" onChange={(event) => void uploadMedia(card, stage, event)} />{uploading !== null ? "Uploading..." : <><ImagePlus size={13} /> Add media</>}</label></div>
                       <div className="grid grid-cols-2 gap-2">{cardMedia.filter((item) => item.media_stage === stage).map((item) => <div key={item.id} className="relative min-w-0 overflow-hidden rounded-lg bg-black"><button type="button" title="Delete media" onClick={() => void deleteMedia(item)} className="absolute right-1 top-1 z-10 rounded bg-black/80 p-1 text-red-300"><Trash2 size={13} /></button>{item.media_type === "video" ? <video src={item.signedUrl} controls playsInline preload="metadata" className="aspect-video w-full object-cover" /> : <img src={item.signedUrl} alt={item.caption || `${stage} service photo`} loading="lazy" className="aspect-video w-full object-cover" />}{item.caption && <p className="whitespace-pre-wrap break-words p-3 text-sm leading-relaxed text-gray-300">{formatMediaCaption(item.caption)}</p>}</div>)}</div>
                     </div>
@@ -499,15 +499,15 @@ export default function JobCardManager() {
       )}
       <div className="flex items-center gap-2 text-[10px] text-gray-600"><ClipboardList size={14} /><Video size={14} /> Video playback is manual; uploaded media is restricted to the assigned customer&apos;s authenticated account and active staff.</div>
       {printCard && (
-        <div className="invoice-print-overlay fixed inset-0 z-[120] overflow-y-auto bg-black/85 p-4 md:p-8">
+        <div className="job-card-print-overlay fixed inset-0 z-[120] overflow-y-auto bg-black/85 p-4 md:p-8">
           <div className="mx-auto max-w-3xl">
             <div className="no-print mb-4 flex justify-end gap-3">
               <button type="button" onClick={() => setPrintCard(null)} className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#111] px-4 py-3 text-xs font-bold"><X size={15} /> Close</button>
               <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-lg bg-[#087fe8] px-5 py-3 text-xs font-bold text-white"><Printer size={15} /> Print / Save PDF</button>
             </div>
-            <div className="invoice-print-area rounded-2xl bg-white p-7 text-black md:p-10">
+            <div className="job-card-print rounded-2xl bg-white p-7 text-black md:p-10">
               <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-[#1688ff] pb-5">
-                <div><p className="text-xl font-black">CK MOTORS AND CLEANING CENTER</p><p className="mt-1 text-xs text-gray-600">Ibulgoda, Akuressa · 077 272 3940 · 077 725 8599</p></div>
+                <div><p className="text-xl font-black">CK MOTORS AND CLEANING CENTER</p><p className="mt-1 text-xs text-gray-600">Imbulgoda, Akuressa · 077 272 3940 · 077 725 8599</p></div>
                 <div className="text-right"><h2 className="text-2xl font-black">JOB CARD</h2><p className="mt-1 font-mono font-bold text-[#087fe8]">{printCard.job_card_number}</p><p className="mt-1 text-xs text-gray-500">Opened: {new Date(printCard.created_at).toLocaleDateString()}</p></div>
               </div>
               <div className="mt-6 grid gap-5 sm:grid-cols-2 text-sm">

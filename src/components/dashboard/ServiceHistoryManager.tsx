@@ -18,6 +18,7 @@ type ServiceRecord = {
   booking_id: string | null;
   user_id: string;
   vehicle_id: string;
+  created_by: string | null;
   technician_name: string | null;
   mileage: number | null;
   service_date: string;
@@ -72,6 +73,7 @@ export default function ServiceHistoryManager() {
     useState<ServiceRecord | null>(null);
 
   const [parts, setParts] = useState<ServicePart[]>([]);
+  const [preparedByName, setPreparedByName] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
@@ -105,6 +107,7 @@ export default function ServiceHistoryManager() {
           booking_id,
           user_id,
           vehicle_id,
+          created_by,
           technician_name,
           mileage,
           service_date,
@@ -189,6 +192,7 @@ export default function ServiceHistoryManager() {
   async function openInvoice(record: ServiceRecord) {
     setInvoiceLoading(true);
     setError("");
+    setPreparedByName(null);
 
     const { data, error: partsError } = await supabase
       .from("service_parts")
@@ -207,7 +211,23 @@ export default function ServiceHistoryManager() {
       return;
     }
 
+    let resolvedPreparedBy: string | null = null;
+    if (record.created_by) {
+      const { data: creatorData, error: creatorError } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", record.created_by)
+        .maybeSingle();
+
+      if (creatorError) {
+        setError(`Invoice opened, but the issuer name could not be loaded: ${creatorError.message}`);
+      } else {
+        resolvedPreparedBy = creatorData?.full_name?.trim() || null;
+      }
+    }
+
     setParts((data || []) as ServicePart[]);
+    setPreparedByName(resolvedPreparedBy);
     setSelectedRecord(record);
     setInvoiceLoading(false);
   }
@@ -374,6 +394,7 @@ export default function ServiceHistoryManager() {
           booking={getBooking(selectedRecord.booking_id)}
           parts={parts}
           invoiceNumber={getInvoiceNumber(selectedRecord)}
+          preparedBy={preparedByName}
           close={() => setSelectedRecord(null)}
         />
       )}
@@ -388,6 +409,7 @@ function CustomerInvoice({
   booking,
   parts,
   invoiceNumber,
+  preparedBy,
   close,
 }: {
   record: ServiceRecord;
@@ -396,6 +418,7 @@ function CustomerInvoice({
   booking?: Booking;
   parts: ServicePart[];
   invoiceNumber: string;
+  preparedBy: string | null;
   close: () => void;
 }) {
   return (
@@ -652,6 +675,29 @@ function CustomerInvoice({
               </div>
             </div>
           )}
+
+          <div className="mt-8 grid gap-8 border-t border-gray-200 pt-6 md:grid-cols-2">
+            <div>
+              <div className="h-12 border-b border-gray-400" />
+              <p className="mt-2 text-xs font-bold text-gray-600">
+                Customer Signature
+              </p>
+            </div>
+
+            <div>
+              <p className="mb-3 text-xs font-bold text-gray-700">
+                Prepared by: {preparedBy?.trim() || "—"}
+              </p>
+              <div className="h-12 border-b border-gray-400" />
+              <p className="mt-2 text-xs font-bold text-gray-600">
+                Authorized Signature
+              </p>
+
+              <div className="mt-4 flex h-[20mm] w-[35mm] items-center justify-center rounded-md border border-dashed border-gray-400 text-[9px] uppercase tracking-wider text-gray-400">
+                Company Seal
+              </div>
+            </div>
+          </div>
 
           <div className="mt-10 border-t border-gray-200 pt-5 text-center">
             <p className="font-black">

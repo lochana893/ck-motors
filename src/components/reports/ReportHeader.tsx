@@ -26,7 +26,7 @@ export default function ReportHeader({
         <img src="/ck-motors-logo.png" alt="CK Motors" className="report-logo h-14 w-auto object-contain" />
         <div>
           <p className="text-lg font-black leading-tight">C.K MOTORS</p>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Ibulgoda, Akuressa, Sri Lanka</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Imbulgoda, Akuressa, Sri Lanka</p>
           <p className="text-[10px] text-gray-500">077 272 3940 · 077 725 8599 · ckmotors.lk</p>
         </div>
       </div>
