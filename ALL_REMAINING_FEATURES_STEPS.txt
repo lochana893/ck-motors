@@ -1,0 +1,66 @@
+CK MOTORS — ALL REMAINING FEATURES
+
+Use this AFTER the Service Workload V7 fix.
+
+This package installs the remaining features in one run:
+
+1. Admin -> View Customer Site
+   - ADMIN PREVIEW MODE
+   - Back to Admin Dashboard
+   - visible only to admin/staff
+
+2. Heavy services
+   - Confirm availability instead of instant Book Now
+   - Call
+   - WhatsApp CK Motors
+   - Request Availability
+   - confirmation notice
+
+3. Customer booking
+   - workload-aware service slots
+   - heavy-service booking blocked
+   - contact options shown
+
+4. Walk-In / Quick Invoice
+   - selected service workload is stored
+
+5. Job Cards
+   - walk-in workload selector
+   - workload dates for multi-day standalone jobs
+
+HOW TO APPLY
+
+1. Extract ZIP.
+2. Copy `apply_all_remaining_features_v1.js` to:
+   C:\Users\MSI\ck-motors
+
+3. CMD:
+   cd /d "C:\Users\MSI\ck-motors"
+   node apply_all_remaining_features_v1.js
+
+4. Expected:
+   SUCCESS: All remaining CK Motors features installed.
+
+5. Build:
+   npm run build
+
+6. If build passes:
+   npm run dev
+
+7. Test:
+   - View Customer Site -> ADMIN PREVIEW MODE
+   - Back to Admin Dashboard
+   - Engine Repair -> Confirm availability
+   - Call / WhatsApp / Request Availability
+   - customer heavy-service booking cannot be submitted normally
+   - Walk-In/Job Card workload controls
+
+8. Optional:
+   Run `flag_existing_heavy_services.sql` in Supabase to automatically mark
+   Engine Repair / Engine Overhaul / Gearbox / Transmission Repair as heavy
+   and confirmation-required.
+
+SAFETY
+- No project file is deleted.
+- Timestamped backups are created for every changed file.
+- The script validates required features before writing.

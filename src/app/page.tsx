@@ -11,16 +11,23 @@ import {
   Clock3,
   Mail,
   MapPin,
+  MapPinned,
   MessageCircle,
   Menu,
   Phone,
   Play,
+  ScrollText,
+  Shield,
+  UserRound,
+  Wrench,
+  Images,
   X,
 } from "lucide-react";
 import CKLogo from "@/components/CKLogo";
 import SehasCredit from "@/components/SehasCredit";
 import PublicVisitCounter from "@/components/PublicVisitCounter";
 import { createClient } from "@/lib/supabase/client";
+import { signOutAndEndLoginSession } from "@/lib/login-session-client";
 import { loadSiteSettings, phoneUrl, validEmail, whatsappUrl, type SiteSettings } from "@/lib/site-settings";
 import { resolveServiceIcon } from "@/lib/service-icons";
 import { formatMediaCaption } from "@/lib/media-caption";
@@ -72,6 +79,23 @@ function formatSlotTime(time: string) {
   const period = hoursRaw >= 12 ? "PM" : "AM";
   const hour = hoursRaw % 12 === 0 ? 12 : hoursRaw % 12;
   return `${hour}:${String(minutesRaw || 0).padStart(2, "0")} ${period}`;
+}
+
+function formatOpeningTime(time: string) {
+  const [hoursRaw, minutesRaw] = time.split(":").map(Number);
+  const period = hoursRaw >= 12 ? "PM" : "AM";
+  const hour = hoursRaw % 12 || 12;
+  return `${hour}:${String(minutesRaw || 0).padStart(2, "0")} ${period}`;
+}
+
+function validExternalUrl(value: string | null | undefined) {
+  if (!value?.trim()) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 export default function Home() {
@@ -207,6 +231,15 @@ export default function Home() {
     site?.maps_url && !site.address && { icon: MapPin, label: "View location", value: "Open Google Maps", href: site.maps_url },
     site?.opening_hours && { icon: Clock3, label: "Opening hours", value: site.opening_hours, href: null },
   ].filter(Boolean) as Array<{ icon: typeof Phone; label: string; value: string; href: string | null }>;
+  const openingDayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const openingHoursByDay = new Map(businessHours.map((hours) => [hours.day_of_week, hours]));
+  const footerPhone = site?.primary_phone.trim() || "077 272 3940";
+  const footerPhoneHref = `tel:${footerPhone.replace(/[^\d+]/g, "")}`;
+  const footerWhatsappUrl = site?.whatsapp_number
+    ? whatsappUrl(site.whatsapp_number, site.whatsapp_message)
+    : "";
+  const footerAddress = [site?.address, site?.city_area].filter(Boolean).join(", ");
+  const footerMapsUrl = validExternalUrl(site?.maps_url) ? site?.maps_url : "";
 
   return (
     <main id="top" className="min-h-screen bg-[#f5f6f8] text-slate-900">
@@ -224,14 +257,14 @@ export default function Home() {
             <a href="#contact" className="transition hover:text-red-600">Contact</a>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            {loggedIn ? <div className="relative hidden sm:block"><button type="button" onClick={() => setAccountOpen((open) => !open)} className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">{accountName} <span aria-hidden>▾</span></button>{accountOpen && <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-2 text-sm font-medium shadow-xl"><Link href={accountRole === "admin" || accountRole === "staff" ? "/admin" : "/dashboard?section=dashboard"} className="block rounded-lg px-3 py-2 hover:bg-slate-50">{accountRole === "admin" || accountRole === "staff" ? "Admin Dashboard" : "Dashboard"}</Link>{accountRole === "admin" && <><Link href="/admin?section=customers" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Customer Management</Link><Link href="/admin?section=gallery" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Gallery Management</Link></>}{accountRole === "customer" && <><Link href="/dashboard?section=vehicles" className="block rounded-lg px-3 py-2 hover:bg-slate-50">My Vehicles</Link><Link href="/dashboard?section=bookings" className="block rounded-lg px-3 py-2 hover:bg-slate-50">My Bookings</Link><Link href="/dashboard?section=history" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Service History</Link><Link href="/dashboard?section=messages" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Messages</Link><Link href="/dashboard?section=notifications" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Notifications</Link><Link href="/dashboard?section=profile" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Profile</Link></>}<button type="button" onClick={async () => { await supabase.auth.signOut(); setLoggedIn(false); setAccountOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-50">Logout</button></div>}</div> : <Link href="/login" className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 sm:block">Customer login</Link>}
+            {loggedIn ? <div className="relative hidden sm:block"><button type="button" onClick={() => setAccountOpen((open) => !open)} className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">{accountName} <span aria-hidden>▾</span></button>{accountOpen && <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-2 text-sm font-medium shadow-xl"><Link href={accountRole === "admin" || accountRole === "staff" ? "/admin" : "/dashboard?section=dashboard"} className="block rounded-lg px-3 py-2 hover:bg-slate-50">{accountRole === "admin" || accountRole === "staff" ? "Admin Dashboard" : "Dashboard"}</Link>{accountRole === "admin" && <><Link href="/admin?section=customers" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Customer Management</Link><Link href="/admin?section=gallery" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Gallery Management</Link></>}{accountRole === "customer" && <><Link href="/dashboard?section=vehicles" className="block rounded-lg px-3 py-2 hover:bg-slate-50">My Vehicles</Link><Link href="/dashboard?section=bookings" className="block rounded-lg px-3 py-2 hover:bg-slate-50">My Bookings</Link><Link href="/dashboard?section=history" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Service History</Link><Link href="/dashboard?section=messages" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Messages</Link><Link href="/dashboard?section=notifications" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Notifications</Link><Link href="/dashboard?section=profile" className="block rounded-lg px-3 py-2 hover:bg-slate-50">Profile</Link></> }<button type="button" onClick={async () => { await signOutAndEndLoginSession(supabase); setLoggedIn(false); setAccountOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left hover:bg-slate-50">Logout</button></div>}</div> : <Link href="/login" className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 sm:block">Customer login</Link>}
             <Link href={loggedIn ? "/dashboard?section=bookings" : "/register"} className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3.5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-700 sm:px-5">
               Book a service <ArrowRight size={16} />
             </Link>
             <button onClick={() => setMobileMenuOpen((open) => !open)} className="rounded-lg p-2 text-slate-500 lg:hidden" aria-label={mobileMenuOpen ? "Close navigation" : "Open navigation"}>{mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}</button>
           </div>
         </div>
-        {mobileMenuOpen && <div className="border-t border-slate-200 bg-white px-5 py-4 lg:hidden"><div className="grid gap-2 text-sm font-medium text-slate-700"><a href="#services" onClick={() => setMobileMenuOpen(false)}>Services</a><a href="#why-us" onClick={() => setMobileMenuOpen(false)}>Why us</a><a href="#process" onClick={() => setMobileMenuOpen(false)}>Our process</a><a href="#gallery" onClick={() => setMobileMenuOpen(false)}>Gallery</a><a href="#contact" onClick={() => setMobileMenuOpen(false)}>Contact</a>{loggedIn ? <><Link href={accountRole === "admin" || accountRole === "staff" ? "/admin" : "/dashboard?section=dashboard"} onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>{accountRole === "customer" && <><Link href="/dashboard?section=vehicles" onClick={() => setMobileMenuOpen(false)}>Vehicles</Link><Link href="/dashboard?section=bookings" onClick={() => setMobileMenuOpen(false)}>Bookings</Link><Link href="/dashboard?section=messages" onClick={() => setMobileMenuOpen(false)}>Messages</Link><Link href="/dashboard?section=notifications" onClick={() => setMobileMenuOpen(false)}>Notifications</Link><Link href="/dashboard?section=profile" onClick={() => setMobileMenuOpen(false)}>Profile</Link></>}<button type="button" className="text-left" onClick={async () => { await supabase.auth.signOut(); setMobileMenuOpen(false); setLoggedIn(false); }}>Logout</button></> : <Link href="/login" onClick={() => setMobileMenuOpen(false)}>Customer login</Link>}</div></div>}
+        {mobileMenuOpen && <div className="border-t border-slate-200 bg-white px-5 py-4 lg:hidden"><div className="grid gap-2 text-sm font-medium text-slate-700"><a href="#services" onClick={() => setMobileMenuOpen(false)}>Services</a><a href="#why-us" onClick={() => setMobileMenuOpen(false)}>Why us</a><a href="#process" onClick={() => setMobileMenuOpen(false)}>Our process</a><a href="#gallery" onClick={() => setMobileMenuOpen(false)}>Gallery</a><a href="#contact" onClick={() => setMobileMenuOpen(false)}>Contact</a>{loggedIn ? <><Link href={accountRole === "admin" || accountRole === "staff" ? "/admin" : "/dashboard?section=dashboard"} onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>{accountRole === "customer" && <><Link href="/dashboard?section=vehicles" onClick={() => setMobileMenuOpen(false)}>Vehicles</Link><Link href="/dashboard?section=bookings" onClick={() => setMobileMenuOpen(false)}>Bookings</Link><Link href="/dashboard?section=messages" onClick={() => setMobileMenuOpen(false)}>Messages</Link><Link href="/dashboard?section=notifications" onClick={() => setMobileMenuOpen(false)}>Notifications</Link><Link href="/dashboard?section=profile" onClick={() => setMobileMenuOpen(false)}>Profile</Link></>}<button type="button" className="text-left" onClick={async () => { await signOutAndEndLoginSession(supabase); setMobileMenuOpen(false); setLoggedIn(false); }}>Logout</button></> : <Link href="/login" onClick={() => setMobileMenuOpen(false)}>Customer login</Link>}</div></div>}
       </nav>
 
       <section className="relative overflow-hidden bg-[#17191f]">
@@ -346,7 +379,116 @@ export default function Home() {
 
       <section id="contact" className="bg-red-600"><div className="mx-auto flex max-w-7xl flex-col gap-8 px-5 py-12 text-white sm:px-8"><div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between"><div><h2 className="text-2xl font-black">{site?.contact_heading || "Ready for a smoother drive?"}</h2><p className="mt-2 text-sm text-red-100">{site?.contact_description || "Create your customer account and schedule your next service in minutes."}</p></div><Link href="/register" className="inline-flex w-fit items-center gap-2 rounded-lg bg-white px-5 py-3 text-sm font-bold text-red-600 transition hover:bg-red-50">Schedule service <ArrowRight size={17} /></Link></div>{contactItems.length > 0 && <div className="grid gap-3 border-t border-white/20 pt-6 sm:grid-cols-2 lg:grid-cols-4">{contactItems.map(({ icon: Icon, label, value, href }) => { const content = <span className="flex min-w-0 items-start gap-3 rounded-xl bg-black/10 p-3 transition hover:bg-black/20"><Icon size={18} className="mt-0.5 shrink-0" /><span className="min-w-0"><span className="block text-xs text-red-100">{label}</span><span className="block whitespace-pre-line text-sm font-semibold">{value}</span></span></span>; return href ? <a key={`${label}-${value}`} href={href} target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noopener noreferrer" : undefined}>{content}</a> : <div key={`${label}-${value}`}>{content}</div>; })}</div>}</div></section>
 
-      <footer className="bg-[#111318] text-slate-400"><div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-8 sm:px-8"><div className="grid gap-6 md:grid-cols-3"><div><Link href="/" aria-label="CK Motors home"><CKLogo size="small" className="w-[120px] brightness-0 invert" /></Link><p className="mt-3 text-sm">{site?.tagline || "Reliable vehicle care in Sri Lanka."}</p></div><div><h3 className="text-xs font-bold uppercase tracking-wider text-white">Quick Links</h3><div className="mt-3 grid gap-2 text-sm"><a href="#services" className="hover:text-white">Services</a><a href="#gallery" className="hover:text-white">Gallery</a><a href="#contact" className="hover:text-white">Contact</a><Link href="/login" className="hover:text-white">Customer Login</Link><Link href="/privacy" className="hover:text-white">Privacy Policy</Link><Link href="/terms" className="hover:text-white">Terms &amp; Conditions</Link></div></div><div><h3 className="text-xs font-bold uppercase tracking-wider text-white">Contact</h3><div className="mt-3 grid gap-2 text-sm">{site?.primary_phone && <a href={phoneUrl(site.primary_phone)} className="hover:text-white">{site.primary_phone}</a>}{site?.whatsapp_number && <a href={whatsappUrl(site.whatsapp_number, site.whatsapp_message)} target="_blank" rel="noopener noreferrer" className="hover:text-white">WhatsApp</a>}{site?.email && validEmail(site.email) && <a href={`mailto:${site.email}`} className="hover:text-white">{site.email}</a>}{site?.address && (site.maps_url ? <a href={site.maps_url} target="_blank" rel="noopener noreferrer" className="hover:text-white">{site.address}, {site.city_area}</a> : <span>{site.address}, {site.city_area}</span>)}</div></div></div><div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4 text-xs"><span>© {new Date().getFullYear()} {site?.business_name || "CK Motors"}. All rights reserved.</span><PublicVisitCounter /><SehasCredit dark /></div>{site?.opening_hours && <div className="flex items-start gap-2 text-sm"><Clock3 size={16} className="mt-0.5 shrink-0" /><span className="whitespace-pre-line">{site.opening_hours}</span></div>}{[["Facebook", site?.facebook_url], ["Instagram", site?.instagram_url], ["TikTok", site?.tiktok_url], ["YouTube", site?.youtube_url]].some(([, href]) => href) && <div className="flex flex-wrap gap-4 text-sm">{[["Facebook", site?.facebook_url], ["Instagram", site?.instagram_url], ["TikTok", site?.tiktok_url], ["YouTube", site?.youtube_url]].filter(([, href]) => href).map(([label, href]) => <a key={label} href={href} target="_blank" rel="noopener noreferrer" className="transition hover:text-white">{label}</a>)}</div>}</div></footer>
+      <footer className="border-t-4 border-red-600 bg-[#101318] text-slate-300">
+        <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
+          <div className="grid grid-cols-1 gap-9 md:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <Link href="/" aria-label="CK Motors home" className="inline-flex cursor-pointer">
+                <CKLogo size="small" className="w-[120px] brightness-0 invert" />
+              </Link>
+              <p className="mt-3 text-sm font-semibold uppercase tracking-wider text-slate-300">
+                {site?.tagline || "Drive With Confidence"}
+              </p>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">Quick Links</h3>
+              <div className="mt-4 grid gap-3 text-sm">
+                <a href="#services" className="inline-flex w-fit cursor-pointer items-center gap-2 transition-colors hover:text-white"><Wrench size={15} aria-hidden />Services</a>
+                <a href="#gallery" className="inline-flex w-fit cursor-pointer items-center gap-2 transition-colors hover:text-white"><Images size={15} aria-hidden />Gallery</a>
+                <a href="#contact" className="inline-flex w-fit cursor-pointer items-center gap-2 transition-colors hover:text-white"><Phone size={15} aria-hidden />Contact</a>
+                <Link href="/login" className="inline-flex w-fit cursor-pointer items-center gap-2 transition-colors hover:text-white"><UserRound size={15} aria-hidden />Customer Login</Link>
+                <Link href="/privacy" className="inline-flex w-fit cursor-pointer items-center gap-2 transition-colors hover:text-white"><Shield size={15} aria-hidden />Privacy Policy</Link>
+                <Link href="/terms" className="inline-flex w-fit cursor-pointer items-center gap-2 transition-colors hover:text-white"><ScrollText size={15} aria-hidden />Terms &amp; Conditions</Link>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">Contact</h3>
+              <div className="mt-4 grid justify-items-start gap-3 text-sm">
+                <a href={footerPhoneHref} aria-label={`Call CK Motors at ${footerPhone}`} className="inline-flex cursor-pointer items-center gap-2 text-blue-300 transition-colors hover:text-white hover:underline">
+                  <Phone size={15} aria-hidden />{footerPhone}
+                </a>
+                {site?.secondary_phone.trim() && (
+                  <a href={`tel:${site.secondary_phone.replace(/[^\d+]/g, "")}`} aria-label={`Call CK Motors at ${site.secondary_phone}`} className="inline-flex cursor-pointer items-center gap-2 text-blue-300 transition-colors hover:text-white hover:underline">
+                    <Phone size={15} aria-hidden />{site.secondary_phone}
+                  </a>
+                )}
+                {footerWhatsappUrl && (
+                  <a href={footerWhatsappUrl} target="_blank" rel="noopener noreferrer" aria-label="Contact CK Motors on WhatsApp" className="inline-flex cursor-pointer items-center gap-2 text-green-400 transition-colors hover:text-green-300 hover:underline">
+                    <MessageCircle size={15} aria-hidden />WhatsApp
+                  </a>
+                )}
+                {site?.email && validEmail(site.email) && (
+                  <a href={`mailto:${site.email}`} className="inline-flex cursor-pointer items-center gap-2 text-blue-300 transition-colors hover:text-white hover:underline">
+                    <Mail size={15} aria-hidden />{site.email}
+                  </a>
+                )}
+                {footerAddress && (
+                  footerMapsUrl
+                    ? <a href={footerMapsUrl} target="_blank" rel="noopener noreferrer" className="inline-flex cursor-pointer items-center gap-2 transition-colors hover:text-sky-300 hover:underline"><MapPin size={15} aria-hidden />{footerAddress}</a>
+                    : <span className="inline-flex items-center gap-2"><MapPin size={15} aria-hidden />{footerAddress}</span>
+                )}
+                {footerMapsUrl && (
+                  <a href={footerMapsUrl} target="_blank" rel="noopener noreferrer" aria-label="View CK Motors on Google Maps" className="inline-flex cursor-pointer items-center gap-2 text-blue-400 transition-colors hover:text-sky-300 hover:underline">
+                    <MapPinned size={15} aria-hidden />View on Google Maps ↗
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-9 grid gap-8 border-t border-white/10 pt-7 md:grid-cols-2">
+            <section aria-labelledby="footer-hours-heading">
+              <h3 id="footer-hours-heading" className="flex items-center gap-2 text-sm font-bold text-white"><Clock3 size={16} aria-hidden />Opening Hours</h3>
+              {site?.opening_hours ? (
+                <p className="mt-4 whitespace-pre-line text-sm leading-6 text-slate-300">{site.opening_hours}</p>
+              ) : businessHours.length > 0 ? (
+                <dl className="mt-4 grid max-w-md grid-cols-[minmax(6rem,1fr)_auto] gap-x-6 gap-y-2 text-sm">
+                  {openingDayNames.map((day, index) => {
+                    const hours = openingHoursByDay.get(index);
+                    const time = hours?.is_open
+                      ? `${formatOpeningTime(hours.opens_at)} – ${formatOpeningTime(hours.closes_at)}`
+                      : "Closed";
+                    return (
+                      <div key={day} className="contents">
+                        <dt className="text-slate-300">{day}</dt>
+                        <dd className="text-right text-slate-300">{time}</dd>
+                      </div>
+                    );
+                  })}
+                </dl>
+              ) : (
+                <dl className="mt-4 grid max-w-md grid-cols-[minmax(6rem,1fr)_auto] gap-x-6 gap-y-2 text-sm">
+                  {openingDayNames.map((day) => (
+                    <div key={day} className="contents">
+                      <dt className="text-slate-300">{day}</dt>
+                      <dd className="text-right text-slate-300">7:00 AM – 6:30 PM</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </section>
+
+            {(validExternalUrl(site?.facebook_url) || validExternalUrl(site?.instagram_url) || validExternalUrl(site?.tiktok_url)) && (
+              <section aria-labelledby="footer-social-heading">
+                <h3 id="footer-social-heading" className="text-sm font-bold text-white">Follow CK Motors</h3>
+                <div className="mt-4 flex flex-wrap gap-x-5 gap-y-3 text-sm">
+                  {site?.facebook_url && validExternalUrl(site.facebook_url) && <a href={site.facebook_url} target="_blank" rel="noopener noreferrer" className="cursor-pointer text-slate-300 transition-colors hover:text-white hover:underline">📘 Facebook</a>}
+                  {site?.instagram_url && validExternalUrl(site.instagram_url) && <a href={site.instagram_url} target="_blank" rel="noopener noreferrer" className="cursor-pointer text-slate-300 transition-colors hover:text-white hover:underline">📸 Instagram</a>}
+                  {site?.tiktok_url && validExternalUrl(site.tiktok_url) && <a href={site.tiktok_url} target="_blank" rel="noopener noreferrer" className="cursor-pointer text-slate-300 transition-colors hover:text-white hover:underline">🎵 TikTok</a>}
+                </div>
+              </section>
+            )}
+          </div>
+
+          <div className="mt-8 flex flex-col items-center gap-3 border-t border-white/10 pt-5 text-center text-xs text-slate-400 md:flex-row md:justify-between md:text-left">
+            <span>© {new Date().getFullYear()} CK MOTORS. All rights reserved.</span>
+            <PublicVisitCounter />
+            <SehasCredit dark compact />
+          </div>
+        </div>
+      </footer>
       {selectedGallery && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4" onClick={() => setSelectedGallery(null)}>
           <div role="dialog" aria-modal="true" aria-label={selectedGallery.title || "Gallery media"} className="relative max-h-[90vh] max-w-5xl overflow-hidden rounded-xl border border-white/15 bg-[#10151e] shadow-2xl shadow-[#1688ff]/10" onClick={(event) => event.stopPropagation()}>

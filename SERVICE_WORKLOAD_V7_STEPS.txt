@@ -1,0 +1,42 @@
+CK MOTORS SERVICE WORKLOAD FIX V7
+
+V7 fixes the exact V6 error:
+"Could not find the Admin services SELECT query."
+
+The services SELECT parser now supports:
+- one-line select strings
+- multi-line select strings
+- single quotes
+- double quotes
+- backtick/template strings
+- select("*")
+
+1. Extract the ZIP.
+2. Copy `fix_service_workload_v7.js` to:
+   C:\Users\MSI\ck-motors
+
+3. CMD:
+   cd /d "C:\Users\MSI\ck-motors"
+   node fix_service_workload_v7.js
+
+4. Expected:
+   SUCCESS: CK Motors Service Workload V7 installed.
+
+5. Run:
+   npm run build
+
+6. If build succeeds:
+   npm run dev
+
+7. Open:
+   http://localhost:3000/admin?section=services
+
+8. Edit Engine Repair:
+   Workshop Workload = Heavy — 4
+   Requires Availability Confirmation = ON
+   Save Service
+
+Safety:
+- Only src/app/admin/page.tsx is changed.
+- A timestamped backup is made.
+- Nothing is deleted.

@@ -39,7 +39,6 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
-import { signOutAndEndLoginSession } from "@/lib/login-session-client";
 import ServiceRecordManager from "@/components/admin/ServiceRecordManager";
 import ServiceInvoices from "@/components/admin/ServiceInvoices";
 import JobCardManager from "@/components/admin/JobCardManager";
@@ -672,7 +671,7 @@ export default function AdminPage() {
   }, [sidebarOpen]);
 
   async function handleLogout() {
-    await signOutAndEndLoginSession(supabase);
+    await supabase.auth.signOut();
     router.replace("/login");
     router.refresh();
   }

@@ -11,7 +11,6 @@ type BusinessHours = {
   closes_at: string;
   slot_duration_minutes: number;
   max_bookings_per_slot: number;
-  daily_workload_capacity: number;
 };
 type BlockedDate = { blocked_date: string; reason: string | null };
 const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -28,7 +27,7 @@ export default function BusinessHoursManager() {
 
   const load = useCallback(async () => {
     const [hoursResult, blockedResult] = await Promise.all([
-      supabase.from("business_hours").select("day_of_week, is_open, opens_at, closes_at, slot_duration_minutes, max_bookings_per_slot, daily_workload_capacity").order("day_of_week"),
+      supabase.from("business_hours").select("day_of_week, is_open, opens_at, closes_at, slot_duration_minutes, max_bookings_per_slot").order("day_of_week"),
       supabase.from("blocked_booking_dates").select("blocked_date, reason").order("blocked_date", { ascending: true }).limit(500),
     ]);
     const loadError = hoursResult.error || blockedResult.error;
@@ -55,7 +54,6 @@ export default function BusinessHoursManager() {
       closes_at: day.closes_at,
       slot_duration_minutes: Number(day.slot_duration_minutes),
       max_bookings_per_slot: Number(day.max_bookings_per_slot),
-      daily_workload_capacity: Number(day.daily_workload_capacity ?? 15),
     }).eq("day_of_week", day.day_of_week);
     setSavingDay(null);
     if (updateError) {
@@ -97,20 +95,19 @@ export default function BusinessHoursManager() {
 
   return (
     <section className="space-y-6">
-      <div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#63b4ff]">Appointment Setup</p><h2 className="mt-1 text-2xl font-black">Business Hours & Booking Slots</h2><p className="mt-2 text-xs text-gray-500">Available slots are checked again in the database when a booking is submitted, so parallel requests cannot overbook a slot.</p><p className="mt-1 text-xs text-amber-600">Workload capacity represents workshop effort, not a fixed number of vehicles. Heavy services can use more capacity and may require confirmation.</p></div>
+      <div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#63b4ff]">Appointment Setup</p><h2 className="mt-1 text-2xl font-black">Business Hours & Booking Slots</h2><p className="mt-2 text-xs text-gray-500">Available slots are checked again in the database when a booking is submitted, so parallel requests cannot overbook a slot.</p></div>
       {error && <p role="alert" className="rounded-lg border border-red-900/60 bg-red-950/20 p-3 text-xs text-red-300">{error}</p>}
       {notice && <p role="status" className="admin-alert admin-alert--success rounded-lg border p-3 text-xs font-semibold">{notice}</p>}
       <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#111]">
-        <table className="w-full min-w-[980px] text-left text-xs">
-          <thead className="border-b border-white/10 text-[10px] uppercase tracking-wider text-gray-500"><tr><th className="p-4">Day</th><th className="p-4">Open</th><th className="p-4">Opening</th><th className="p-4">Closing</th><th className="p-4">Slot minutes</th><th className="p-4">Online Booking Limit</th><th className="p-4">Daily Workload Capacity</th><th className="p-4"></th></tr></thead>
+        <table className="w-full min-w-[760px] text-left text-xs">
+          <thead className="border-b border-white/10 text-[10px] uppercase tracking-wider text-gray-500"><tr><th className="p-4">Day</th><th className="p-4">Open</th><th className="p-4">Opening</th><th className="p-4">Closing</th><th className="p-4">Slot minutes</th><th className="p-4">Bookings per slot</th><th className="p-4"></th></tr></thead>
           <tbody>{hours.map((day) => <tr key={day.day_of_week} className="border-b border-white/5 last:border-0">
             <td className="p-4 font-bold">{weekdays[day.day_of_week]}</td>
             <td className="p-4"><input aria-label={`${weekdays[day.day_of_week]} open`} type="checkbox" checked={day.is_open} onChange={(event) => setHours((current) => current.map((item) => item.day_of_week === day.day_of_week ? { ...item, is_open: event.target.checked } : item))} /></td>
             <td className="p-4"><input aria-label={`${weekdays[day.day_of_week]} opening time`} type="time" value={day.opens_at.slice(0, 5)} onChange={(event) => setHours((current) => current.map((item) => item.day_of_week === day.day_of_week ? { ...item, opens_at: event.target.value } : item))} className="rounded border border-white/10 bg-[#080808] px-2 py-1" /></td>
             <td className="p-4"><input aria-label={`${weekdays[day.day_of_week]} closing time`} type="time" value={day.closes_at.slice(0, 5)} onChange={(event) => setHours((current) => current.map((item) => item.day_of_week === day.day_of_week ? { ...item, closes_at: event.target.value } : item))} className="rounded border border-white/10 bg-[#080808] px-2 py-1" /></td>
             <td className="p-4"><select aria-label={`${weekdays[day.day_of_week]} slot length`} value={day.slot_duration_minutes} onChange={(event) => setHours((current) => current.map((item) => item.day_of_week === day.day_of_week ? { ...item, slot_duration_minutes: Number(event.target.value) } : item))} className="rounded border border-white/10 bg-[#080808] px-2 py-2">{[15, 30, 45, 60, 90, 120].map((minutes) => <option key={minutes} value={minutes}>{minutes} min</option>)}</select></td>
-            <td className="p-4"><input aria-label={`${weekdays[day.day_of_week]} online booking limit`} type="number" min="1" max="100" value={day.max_bookings_per_slot} onChange={(event) => setHours((current) => current.map((item) => item.day_of_week === day.day_of_week ? { ...item, max_bookings_per_slot: Number(event.target.value) } : item))} className="w-20 rounded border border-white/10 bg-[#080808] px-2 py-2" /></td>
-            <td className="p-4"><input aria-label={`${weekdays[day.day_of_week]} daily workload capacity`} type="number" min="1" max="500" value={day.daily_workload_capacity ?? 15} onChange={(event) => setHours((current) => current.map((item) => item.day_of_week === day.day_of_week ? { ...item, daily_workload_capacity: Number(event.target.value) } : item))} className="w-24 rounded border border-white/10 bg-[#080808] px-2 py-2" /></td>
+            <td className="p-4"><input aria-label={`${weekdays[day.day_of_week]} bookings per slot`} type="number" min="1" max="100" value={day.max_bookings_per_slot} onChange={(event) => setHours((current) => current.map((item) => item.day_of_week === day.day_of_week ? { ...item, max_bookings_per_slot: Number(event.target.value) } : item))} className="w-20 rounded border border-white/10 bg-[#080808] px-2 py-2" /></td>
             <td className="p-4"><button type="button" disabled={savingDay === day.day_of_week} onClick={() => void saveDay(day)} className="rounded-lg bg-[#087fe8] px-3 py-2 text-[10px] font-bold disabled:opacity-50">{savingDay === day.day_of_week ? "Saving..." : "Save"}</button></td>
           </tr>)}</tbody>
         </table>

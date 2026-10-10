@@ -1,0 +1,30 @@
+CK MOTORS BUSINESS HOURS FIX V2
+
+This version handles partially edited BusinessHoursManager.tsx files.
+
+1. Extract this ZIP.
+2. Copy `fix_business_hours_v2.js` to:
+   C:\Users\MSI\ck-motors
+
+3. CMD:
+   cd /d "C:\Users\MSI\ck-motors"
+   node fix_business_hours_v2.js
+
+4. Expected:
+   SUCCESS: Business Hours workload UI is now installed.
+
+5. Then:
+   npm run dev
+
+6. Open:
+   http://localhost:3000/admin
+
+7. Business Hours should show:
+   - Online Booking Limit
+   - Daily Workload Capacity
+
+Safety:
+- No files are deleted.
+- A backup is created:
+  src\components\admin\BusinessHoursManager.tsx.backup-before-workload-v2
+- The script validates the result before overwriting the file.

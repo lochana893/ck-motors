@@ -1,0 +1,58 @@
+CK MOTORS FINAL FIX V5
+
+This V5 is built against the current CK Motors `main` source structure.
+
+It installs/repairs:
+- Admin > Services > Workshop Workload
+- Light / Normal / Medium / Heavy / Very Heavy
+- Requires Availability Confirmation
+- Engine/heavy services cannot be instantly booked when confirmation is ON
+- Call / WhatsApp / Request Availability
+- Workload-aware booking slots
+- Walk-In workload snapshot
+- Admin View Customer Site
+- ADMIN PREVIEW MODE
+- Back to Admin Dashboard
+- Normal customers/logged-out visitors do not see the admin preview bar
+
+HOW TO APPLY
+
+1. Extract this ZIP.
+2. Copy `apply_ck_final_v5.js` into:
+   C:\Users\MSI\ck-motors
+
+3. CMD:
+   cd /d "C:\Users\MSI\ck-motors"
+   node apply_ck_final_v5.js
+
+4. Expected:
+   SUCCESS: CK Motors final V5 features installed.
+
+5. Then:
+   npm run build
+
+6. If build succeeds:
+   npm run dev
+
+7. Open:
+   http://localhost:3000/admin?section=services
+
+8. Edit Engine Repair:
+   Workshop Workload = Heavy — 4
+   Requires Availability Confirmation = ON
+   Save Service
+
+9. Click View Customer Site:
+   ADMIN PREVIEW MODE
+   Back to Admin Dashboard
+
+10. Engine Repair from public/customer side:
+   Confirm availability
+   Call
+   WhatsApp
+   Request Availability
+
+SAFETY
+- No files are deleted.
+- Timestamped backups are created for every changed file.
+- The updater validates all requested features before writing.

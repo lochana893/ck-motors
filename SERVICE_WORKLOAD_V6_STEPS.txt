@@ -1,0 +1,38 @@
+CK MOTORS SERVICE WORKLOAD FIX V6
+
+This version does NOT depend on the exact old Service type formatting.
+It scans the TypeScript blocks and inserts only the missing fields.
+
+1. Extract ZIP.
+2. Copy `fix_service_workload_v6.js` into:
+   C:\Users\MSI\ck-motors
+
+3. CMD:
+   cd /d "C:\Users\MSI\ck-motors"
+   node fix_service_workload_v6.js
+
+4. Expected:
+   SUCCESS: Service workload UI installed with flexible V6 patcher.
+
+5. Then:
+   npm run build
+
+6. If build passes:
+   npm run dev
+
+7. Open:
+   http://localhost:3000/admin?section=services
+
+8. Edit Engine Repair and confirm:
+   - Workshop Workload
+   - Requires Availability Confirmation
+
+Recommended:
+- Heavy — 4
+- Requires Availability Confirmation = ON
+
+Safety:
+- No files are deleted.
+- It changes only src/app/admin/page.tsx
+- It validates before writing.
+- It creates a timestamped backup first.

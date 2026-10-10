@@ -1,0 +1,41 @@
+CK MOTORS — SERVICE WORKLOAD FIX V4
+
+This fixes the exact problem shown in the screenshot:
+Engine Repair > Edit Service does not show:
+- Workshop Workload
+- Requires Availability Confirmation
+
+1. Extract ZIP.
+2. Copy `fix_service_workload_v4.js` to:
+   C:\Users\MSI\ck-motors
+
+3. CMD:
+   cd /d "C:\Users\MSI\ck-motors"
+   node fix_service_workload_v4.js
+
+4. Expected:
+   SUCCESS: Services workload controls installed.
+
+5. Build:
+   npm run build
+
+6. Local:
+   npm run dev
+
+7. Open:
+   http://localhost:3000/admin?section=services
+
+8. Edit Engine Repair.
+
+You must now see:
+- Workshop Workload
+- Requires Availability Confirmation
+
+Recommended Engine Repair settings:
+- Workshop Workload = Heavy — 4
+- Requires Availability Confirmation = ON
+
+Safety:
+- Only src/app/admin/page.tsx is changed.
+- A timestamped backup is created first.
+- Nothing is deleted.

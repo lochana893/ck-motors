@@ -24,8 +24,8 @@ export default function PublicVisitCounter() {
   if (count === null) return null;
 
   return (
-    <span className="text-xs text-gray-500">
-      {count.toLocaleString()}+ Website Visits
+    <span className="text-xs text-gray-500" aria-label={`Website Visits: ${count.toLocaleString()}`}>
+      Website Visits: {count.toLocaleString()}
     </span>
   );
 }

@@ -7,11 +7,12 @@ import { createClient } from "@/lib/supabase/client";
 import { Eye, EyeOff } from "lucide-react";
 import AuthHeader from "@/components/AuthHeader";
 import SehasCredit from "@/components/SehasCredit";
+import { normalizeSriLankanPhone } from "@/lib/phone-number";
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
    const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -21,74 +22,127 @@ export default function LoginPage() {
     e.preventDefault();
 
     setError("");
+    if (!identifier.trim()) {
+      setError("Enter your email address or phone number.");
+      return;
+    }
+    if (!password) {
+      setError("Enter your password.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const { data, error: loginError } =
-        await supabase.auth.signInWithPassword({
-          email: email.trim().toLowerCase(),
+      const normalizedIdentifier = identifier.trim();
+      const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedIdentifier)
+        ? normalizedIdentifier.toLowerCase()
+        : null;
+      const phone = email ? null : normalizeSriLankanPhone(normalizedIdentifier);
+      if (!email && !phone) {
+        setError("Invalid email/phone number or password.");
+        return;
+      }
+
+      let userId: string | null = null;
+      let userEmail: string | null = null;
+      if (email) {
+        const { data, error: loginError } = await supabase.auth.signInWithPassword({
+          email,
           password,
         });
-
-      if (loginError) {
-        void fetch("/api/security/login-activity", {
+        if (loginError || !data.user) {
+          void fetch("/api/security/login-activity", {
+            method: "POST",
+            keepalive: true,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, status: "failed", loginMethod: "email" }),
+          }).catch(() => undefined);
+          setError(
+            loginError?.status && loginError.status >= 500
+              ? "Unable to sign in right now. Please try again."
+              : "Invalid email/phone number or password.",
+          );
+          return;
+        }
+        userId = data.user.id;
+        userEmail = data.user.email || email;
+      } else {
+        const response = await fetch("/api/auth/phone-login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim().toLowerCase(), status: "failed" }),
-        }).catch(() => undefined);
-        setError("Email or password is incorrect.");
-        return;
+          body: JSON.stringify({ phone, password }),
+        });
+        const result = (await response.json()) as {
+          error?: string;
+          session?: { access_token: string; refresh_token: string };
+        };
+        if (!response.ok) {
+          setError(result.error || "Unable to sign in right now. Please try again.");
+          return;
+        }
+        if (!result.session?.access_token || !result.session.refresh_token) {
+          setError("Unable to sign in right now. Please try again.");
+          return;
+        }
+        const { error: sessionError } = await supabase.auth.setSession(result.session);
+        if (sessionError) {
+          setError("Unable to sign in right now. Please try again.");
+          return;
+        }
+        const { data: authData, error: authError } = await supabase.auth.getUser();
+        if (authError || !authData.user) {
+          setError("Unable to sign in right now. Please try again.");
+          return;
+        }
+        userId = authData.user.id;
+        userEmail = authData.user.email || null;
       }
 
-      if (!data.user) {
-        setError("Unable to login. Please try again.");
+      if (!userId) {
+        setError("Unable to sign in right now. Please try again.");
         return;
       }
-
-      void fetch("/api/security/login-activity", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: data.user.email || email.trim().toLowerCase(), status: "success" }),
-      }).catch(() => undefined);
 
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role, status, must_change_password")
-        .eq("id", data.user.id)
+        .eq("id", userId)
         .maybeSingle();
 
       if (profileError) {
         console.warn("Authenticated user profile query failed:", {
-          userId: data.user.id,
+          userId,
           code: profileError.code,
           message: profileError.message,
         });
         await supabase.auth.signOut();
-        setError(
-          profileError.code === "42501"
-            ? "Your account is authenticated, but profile access is not configured. Please contact CK Motors."
-            : "Unable to load your account profile. Please contact CK Motors.",
-        );
+        setError("Your account is currently unavailable. Please contact CK Motors.");
         return;
       }
 
       if (!profile) {
         console.warn("Authenticated user has no matching profile:", {
-          authUserId: data.user.id,
+          authUserId: userId,
         });
         await supabase.auth.signOut();
-        setError(
-          "Your login is valid, but no matching CK Motors customer profile was found. Please contact CK Motors.",
-        );
+        setError("Your account is currently unavailable. Please contact CK Motors.");
         return;
       }
 
-      if (profile.status === "disabled") {
+      if (profile.status !== "active") {
         await supabase.auth.signOut();
-        setError(
-          "Your account has been disabled. Please contact CK Motors."
-        );
+        setError("Your account is currently unavailable. Please contact CK Motors.");
         return;
+      }
+
+      if (email && userEmail) {
+        void fetch("/api/security/login-activity", {
+          method: "POST",
+          keepalive: true,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: userEmail, status: "success", loginMethod: "email" }),
+        }).catch(() => undefined);
       }
 
       if (profile.must_change_password === true && profile.role === "customer") {
@@ -102,7 +156,7 @@ export default function LoginPage() {
       router.refresh();
     } catch (loginError) {
       console.warn("Unexpected customer login error:", loginError);
-      setError("Something went wrong. Please try again.");
+      setError("Unable to sign in right now. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -137,18 +191,20 @@ export default function LoginPage() {
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <label className="mb-2 block text-xs font-semibold text-slate-600">
-                  Email Address
+                  Email or Phone Number
                 </label>
 
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  required
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Email address or phone number"
+                  autoComplete="username"
                   className="auth-input-light h-12 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-red-600"
                 />
+                <p className="mt-2 text-xs text-slate-500">
+                  Use your registered email address or phone number.
+                </p>
               </div>
 
               <div>
@@ -172,7 +228,6 @@ export default function LoginPage() {
     onChange={(e) => setPassword(e.target.value)}
     placeholder="Enter your password"
     autoComplete="current-password"
-    required
     className="auth-input-light h-12 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 pr-12 text-sm outline-none focus:border-red-600"
   />
 
@@ -192,7 +247,7 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <div className="rounded-lg border border-red-900/70 bg-red-950/30 px-4 py-3 text-xs leading-5 text-red-400">
+                <div role="alert" aria-live="assertive" className="rounded-lg border border-red-900/70 bg-red-950/30 px-4 py-3 text-xs leading-5 text-red-400">
                   {error}
                 </div>
               )}
@@ -202,7 +257,7 @@ export default function LoginPage() {
                 disabled={loading}
                 className="h-12 w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {loading ? "Logging in..." : "Login"}
+                {loading ? "Signing In..." : "Sign In"}
               </button>
             </form>
 

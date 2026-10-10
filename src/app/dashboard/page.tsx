@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/client";
+import { signOutAndEndLoginSession } from "@/lib/login-session-client";
 import VehiclesManager from "@/components/dashboard/VehiclesManager";
 import BookingManager from "@/components/dashboard/BookingManager";
 import ServiceHistoryManager from "@/components/dashboard/ServiceHistoryManager";
@@ -323,7 +324,7 @@ export default function DashboardPage() {
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut();
+    await signOutAndEndLoginSession(supabase);
     router.replace("/login");
     router.refresh();
   }

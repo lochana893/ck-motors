@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
+import SessionHeartbeat from "@/components/SessionHeartbeat";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <AnalyticsTracker />
+          <SessionHeartbeat />
           {children}
         </ThemeProvider>
       </body>

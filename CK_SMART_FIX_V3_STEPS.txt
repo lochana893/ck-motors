@@ -1,0 +1,59 @@
+CK MOTORS SMART FIX V3
+
+This V3 is made specifically because the previous updater stopped at:
+"Could not find expected code for: Admin Service type"
+
+V3 does not depend on the old exact formatting. It detects the relevant
+TypeScript blocks and inserts only missing fields/features.
+
+1. Extract ZIP.
+
+2. Copy:
+   apply_ck_smart_fix_v3.js
+to:
+   C:\Users\MSI\ck-motors
+
+3. CMD:
+   cd /d "C:\Users\MSI\ck-motors"
+   node apply_ck_smart_fix_v3.js
+
+4. Expected:
+   SUCCESS: CK Motors Smart Fix V3 completed.
+
+5. Build:
+   npm run build
+
+6. If build passes:
+   npm run dev
+
+7. Check:
+   Admin > Services > Edit Engine Repair
+   - Workshop Workload
+   - Requires Availability Confirmation
+
+   Set:
+   Heavy (4) or Very Heavy (5)
+   Requires Availability Confirmation = ON
+
+8. Admin > View Customer Site:
+   - ADMIN PREVIEW MODE
+   - Back to Admin Dashboard
+
+9. Normal customer/logged-out visitor:
+   - must NOT see admin preview control
+
+10. Engine Repair:
+   - Confirm availability
+   - Call
+   - WhatsApp
+   - Request Availability
+   - no instant online booking
+
+11. Optional:
+   Run `flag_heavy_services_v3.sql` in Supabase to automatically mark
+   existing Engine Repair / Engine Overhaul / Gearbox services.
+
+SAFETY:
+- No project file is deleted.
+- The script validates all required features before writing.
+- Every changed file receives a timestamped backup.

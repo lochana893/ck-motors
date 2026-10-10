@@ -3,11 +3,12 @@
 import { FormEvent, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import AuthHeader from "@/components/AuthHeader";
+import { normalizeSriLankanPhone } from "@/lib/phone-number";
 
 export default function ForgotPasswordPage() {
   const supabase = useMemo(() => createClient(), []);
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -18,30 +19,39 @@ export default function ForgotPasswordPage() {
     setError("");
     setSuccess("");
 
-    if (!email.trim()) {
-      setError("Please enter your email address.");
+    if (!identifier.trim()) {
+      setError("Enter your registered email address or phone number.");
+      return;
+    }
+
+    const value = identifier.trim();
+    if (
+      normalizeSriLankanPhone(value) ||
+      (!value.includes("@") && /^\+?[\d\s().-]{7,}$/.test(value))
+    ) {
+      setSuccess("Password recovery is available through your registered account details.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setError("Enter your registered email address or phone number.");
       return;
     }
 
     setLoading(true);
-
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      email.trim(),
-      {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(value.toLowerCase(), {
         redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) {
+        setError("Unable to send a recovery email right now. Please try again.");
+        return;
       }
-    );
-
-    setLoading(false);
-
-    if (error) {
-      setError(error.message);
-      return;
+      setSuccess("If this email is registered, a password reset link will be sent to its inbox.");
+    } catch {
+      setError("Unable to send a recovery email right now. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setSuccess(
-      "Password reset link sent. Please check your email inbox."
-    );
   }
 
   return (
@@ -55,7 +65,7 @@ export default function ForgotPasswordPage() {
           </h1>
 
           <p className="mt-3 text-sm text-slate-500">
-            Enter your email and we&apos;ll send you a password reset link.
+            Enter your registered email address or phone number for recovery guidance.
           </p>
         </div>
 
@@ -63,26 +73,27 @@ export default function ForgotPasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="mb-2 block text-xs font-semibold text-slate-600">
-                Email Address
+                Email or Phone Number
               </label>
 
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                type="text"
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
+                placeholder="Email address or phone number"
+                autoComplete="username"
                 className="auth-input-light h-12 w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-red-600"
               />
             </div>
 
             {error && (
-              <div className="rounded-lg border border-red-900/60 bg-red-950/30 p-3 text-xs text-red-400">
+              <div role="alert" className="rounded-lg border border-red-900/60 bg-red-950/30 p-3 text-xs text-red-700">
                 {error}
               </div>
             )}
 
             {success && (
-              <div className="rounded-lg border border-green-900/60 bg-green-950/20 p-3 text-xs leading-5 text-green-400">
+              <div role="status" className="rounded-lg border border-green-900/60 bg-green-950/20 p-3 text-xs leading-5 text-green-700">
                 {success}
               </div>
             )}
@@ -92,7 +103,7 @@ export default function ForgotPasswordPage() {
               disabled={loading}
               className="h-12 w-full cursor-pointer rounded-lg bg-red-600 px-5 py-3 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-50"
             >
-              {loading ? "Sending..." : "Send Reset Link"}
+              {loading ? "Sending..." : "Continue"}
             </button>
           </form>
 
