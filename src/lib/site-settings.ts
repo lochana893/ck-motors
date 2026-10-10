@@ -71,6 +71,12 @@ function settingsFromRow(row: WebsiteSettingsRow | null): SiteSettings {
     }
   }
 
+  if (typeof row.maps_url === "string") {
+    settings.maps_url = row.maps_url;
+  } else if (typeof row.google_maps_url === "string") {
+    settings.maps_url = row.google_maps_url;
+  }
+
   if (!settings.address.trim()) {
     settings.address = DEFAULT_SITE_SETTINGS.address;
     if (!settings.city_area.trim() || settings.city_area.toLowerCase() === "sri lanka") {
@@ -131,9 +137,17 @@ export async function saveSiteSettings(
 
   const payload = Object.fromEntries(
     SITE_SETTING_KEYS
-      .filter((key) => Object.prototype.hasOwnProperty.call(row, key))
+      .filter((key) => key !== "maps_url" && Object.prototype.hasOwnProperty.call(row, key))
       .map((key) => [key, key === "address" ? normalizeBusinessAddress(settings.address) : settings[key]]),
   );
+
+  if (Object.prototype.hasOwnProperty.call(row, "maps_url")) {
+    payload.maps_url = settings.maps_url;
+  } else if (Object.prototype.hasOwnProperty.call(row, "google_maps_url")) {
+    payload.google_maps_url = settings.maps_url;
+  } else {
+    throw new Error("The website settings table has no supported Google Maps URL column.");
+  }
 
   if (Object.keys(payload).length === 0) {
     throw new Error("The existing website settings row has no supported settings columns.");
